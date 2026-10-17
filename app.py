@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
 
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
@@ -15,10 +16,41 @@ def main():
 
     st.sidebar.markdown("--- ")
     st.sidebar.header("📦 Configuración de Bloques")
-    bloques_input = st.sidebar.number_input("Cantidad de bloques a analizar", value=3.0, step=0.5)
+    bloques_input = st.sidebar.number_input("Cantidad de bloques (columnas/meses) a analizar", value=2.0, step=0.5)
+
+    st.sidebar.markdown("--- ")
+    st.sidebar.header("📥 Plantilla de Forecast")
+    # Ofrecer la descarga de la plantilla Forecast template.csv en la barra lateral
+    template_path = "/content/Forecast template.csv"
+    if os.path.exists(template_path):
+        with open(template_path, "rb") as file:
+            st.sidebar.download_button(
+                label="📥 Descargar Plantilla Forecast (CSV)",
+                data=file,
+                file_name="Forecast_template.csv",
+                mime="text/csv"
+            )
+    else:
+        st.sidebar.info("Archivo de plantilla no encontrado en el entorno de ejecución.")
+
+    # Instrucciones iniciales del layout
+    with st.expander("ℹ️ Instrucciones de Formato y Estructura de Ficheros (Layout)", expanded=True):
+        st.markdown("""
+        ### 📑 Formato de Archivos Requeridos
+        Para garantizar un correcto funcionamiento de la herramienta, asegúrate de que tus archivos cumplan con el siguiente layout:
+        
+        1. **Forecast (Anterior y Nuevo):**
+           * Debe cargarse en formato **tabular**.
+           * Debe contener la columna **Producto** (nombre o identificador del Producto Terminado).
+           * Debe contener la columna **Unidad de medida**.
+           * Debe poseer las columnas de **Meses** de planificación con su respectiva **Proyección de venta por mes** (ej. *ene, feb, mar...*).
+        
+        2. **Estructura BOM (Lista de Materiales):**
+           * Debe contener una relación del **Producto**, su **Componente** (o Material) y la **Cantidad requerida** (Factor de explosión).
+        """)
 
     st.write("### 📂 Carga de Archivos de Planificación")
-    
+
     # Usar llaves para poder limpiar los file uploaders usando session_state
     if "uploader_key_ant" not in st.session_state:
         st.session_state["uploader_key_ant"] = 100
@@ -37,11 +69,13 @@ def main():
     if use_demo:
         df_fc_ant = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
+            "Unidad de medida": ["Unidades", "Unidades", "Unidades"],
             "01-ene": [1000, 500, 300],
             "01-feb": [1100, 400, 350]
         })
         df_fc_nuevo = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
+            "Unidad de medida": ["Unidades", "Unidades", "Unidades"],
             "01-ene": [1200, 300, 300],
             "01-feb": [1500, 200, 400]
         })
@@ -78,25 +112,27 @@ def main():
             resetear = st.button("🗑️ Resetear / Limpiar Datos", use_container_width=True)
 
         if resetear:
-            # Cambiamos las llaves de los uploader para forzar a Streamlit a destruirlos y recrearlos vacíos
             st.session_state["uploader_key_ant"] += 1
             st.session_state["uploader_key_nuevo"] += 1
             st.session_state["uploader_key_bom"] += 1
             st.rerun()
 
         if ejecutar:
-            # Validación estricta del campo 'bloques_input'
-            is_not_int = not float(bloques_input).is_integer()
-            
-            try:
-                col_prod_ant = [c for c in df_fc_ant.columns if "prod" in c.lower()][0]
-                productos_disponibles = int(df_fc_ant[col_prod_ant].nunique())
-            except Exception:
-                productos_disponibles = 0
+            # Identificación de Columnas Temporales (Meses) en los Forecasts
+            palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-            # Comprobar límites
+            col_meses_ant = [c for c in df_fc_ant.columns if any(m in c.lower() for m in palabras_mes)]
+            col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in c.lower() for m in palabras_mes)]
+
+            # Encontrar la intersección de meses en común
+            meses_comunes = [m for m in col_meses_ant if m in col_meses_nue]
+            columnas_disponibles = len(meses_comunes)
+
+            # Validación estricta del campo 'bloques_input' contra la cantidad de columnas (meses)
+            is_not_int = not float(bloques_input).is_integer()
             valor_int = int(bloques_input) if not is_not_int else 0
-            if is_not_int or valor_int <= 0 or valor_int > productos_disponibles:
+
+            if is_not_int or valor_int <= 0 or valor_int > columnas_disponibles:
                 st.error("❌ Error de bloques definidos")
                 return
 
@@ -111,30 +147,18 @@ def main():
                 col_prod_bom = [c for c in df_bom_clean.columns if "prod" in c.lower()][0]
                 df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
 
-                palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
-
-                col_meses_ant = [c for c in df_fc_ant.columns if any(m in c.lower() for m in palabras_mes)]
-                col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in c.lower() for m in palabras_mes)]
-
                 col_prod_ant = [c for c in df_fc_ant.columns if "prod" in c.lower()][0]
                 col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in c.lower()][0]
 
-                productos_filtrados = df_fc_ant[col_prod_ant].drop_duplicates().head(valor_int)
-                
-                df_fc_ant_clean = df_fc_ant[df_fc_ant[col_prod_ant].isin(productos_filtrados)].copy().rename(columns={col_prod_ant: "Producto"})
-                df_fc_nuevo_clean = df_fc_nuevo[df_fc_nuevo[col_prod_nue].isin(productos_filtrados)].copy().rename(columns={col_prod_nue: "Producto"})
+                df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
+                df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
 
-                if col_meses_ant:
-                    df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
-                else:
-                    col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
-                    df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_dem_ant]
+                # Tomamos únicamente las primeras 'valor_int' columnas temporales (meses)
+                meses_a_analizar = meses_comunes[:valor_int]
 
-                if col_meses_nue:
-                    df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
-                else:
-                    col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
-                    df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_dem_nue]
+                # Consolidar Demanda de los meses filtrados por bloque
+                df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[meses_a_analizar].sum(axis=1)
+                df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[meses_a_analizar].sum(axis=1)
 
                 # Explosión de Demanda Anterior
                 merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
@@ -177,7 +201,7 @@ def main():
 
                 final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
 
-                st.write("### 📈 Resumen de Impacto Global de Componentes (Análisis limitado a", valor_int, "bloques/productos)")
+                st.write(f"### 📈 Resumen de Impacto Global (Análisis limitado a {valor_int} meses: {', '.join(meses_a_analizar)})")
                 totales_unicos = merged_tot.copy()
                 totales_unicos["Impacto"] = totales_unicos.apply(lambda r: "🔴 Incremento Crítico" if r["Var_Abs_Total" ] > 0 and r["Variación % Total"] >= umbral_subida else ("🔵 Disminución Crítica" if r["Var_Abs_Total"] < 0 and r["Variación % Total"] <= umbral_bajada else "🟢 Estable"), axis=1)
 
