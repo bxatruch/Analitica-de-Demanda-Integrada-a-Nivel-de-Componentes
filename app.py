@@ -265,7 +265,7 @@ def main():
                 max_lt = int(final_df["Lead Time"].max())
                 # Crear rangos en bloques de 30 días basándose en el máximo encontrado
                 if max_lt > 0:
-                    opciones_lt = ["Mostrar Todos"] + [f"Menor a {d} días" for d in range(30, max_lt + 31, 30)]
+                    opciones_lt = ["Mostrar Todos"] + [f"Igual o menor a {d} días" for d in range(30, max_lt + 31, 30)]
                 else:
                     opciones_lt = ["Mostrar Todos"]
 
@@ -277,14 +277,15 @@ def main():
                         key="selectbox_filtro_lt"
                     )
                     if seleccion_lt != "Mostrar Todos":
-                        lead_time_limite = int(seleccion_lt.split(" ")[2])
+                        # Extraer el entero en la posición 4 de la frase "Igual o menor a XX días"
+                        lead_time_limite = int(seleccion_lt.split(" ")[4])
 
             # Aplicar Filtro de Impacto
             df_filtrado = final_df[final_df["Impacto Componente"].isin(filtro_impacto)]
 
             # Aplicar Filtro de Lead Time
             if lead_time_limite is not None:
-                df_filtrado = df_filtrado[df_filtrado["Lead Time"] < lead_time_limite]
+                df_filtrado = df_filtrado[df_filtrado["Lead Time"] <= lead_time_limite]
 
             df_filtrado = df_filtrado.sort_values(by=["Material", "Var_Abs_Prod"], ascending=[True, False])
 
