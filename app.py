@@ -201,7 +201,8 @@ def main():
                 merged_tot["Variación % Total"] = merged_tot["Variación % Total"].replace([np.inf, -np.inf], np.nan).fillna(0)
 
                 # Procesar Lead Times si están disponibles
-                if df_lt is not nil_df_lt := (df_lt is not None):
+                has_lead_times = (df_lt is not None)
+                if has_lead_times:
                     try:
                         col_lt_mat = [c for c in df_lt.columns if any(p in c.lower() for p in ["material", "componente", "part_number"])][0]
                         col_lt_val = [c for c in df_lt.columns if any(p in c.lower() for p in ["lead", "time", "tiempo", "entrega"])][0]
@@ -222,7 +223,7 @@ def main():
                     "merged_tot": merged_tot,
                     "valor_int": valor_int,
                     "meses_a_analizar": meses_a_analizar,
-                    "has_lt": nil_df_lt
+                    "has_lt": has_lead_times
                 }
 
             except Exception as e:
