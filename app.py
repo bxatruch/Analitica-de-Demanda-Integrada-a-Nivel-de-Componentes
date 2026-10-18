@@ -1,10 +1,4 @@
-# Instalar streamlit si no está en el entorno (necesario en Google Colab)
-try:
-    import streamlit as st
-except ImportError:
-    !pip install -q streamlit
-    import streamlit as st
-
+import streamlit as st
 import pandas as pd
 import numpy as np
 import os
