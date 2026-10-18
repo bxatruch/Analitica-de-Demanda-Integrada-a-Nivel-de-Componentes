@@ -1,4 +1,10 @@
-import streamlit as st
+# Instalar streamlit si no está en el entorno (necesario en Google Colab)
+try:
+    import streamlit as st
+except ImportError:
+    !pip install -q streamlit
+    import streamlit as st
+
 import pandas as pd
 import numpy as np
 import os
@@ -27,32 +33,18 @@ def main():
         if "analisis_resultado" in st.session_state:
             del st.session_state["analisis_resultado"]
 
-    st.sidebar.markdown("--- ")
-    st.sidebar.header("📥 Plantilla de Forecast")
-    template_path = "/content/Forecast template.csv"
-    if os.path.exists(template_path):
-        with open(template_path, "rb") as file:
-            st.sidebar.download_button(
-                label="📥 Descargar Plantilla Forecast (CSV)",
-                data=file,
-                file_name="Forecast_template.csv",
-                mime="text/csv"
-            )
-    else:
-        st.sidebar.info("Archivo de plantilla no encontrado en el entorno de ejecución.")
-
     # Instrucciones iniciales del layout
     with st.expander("ℹ️ Instrucciones de Formato y Estructura de Ficheros (Layout)", expanded=True):
         st.markdown("""
         ### 📑 Formato de Archivos Requeridos
         Para garantizar un correcto funcionamiento de la herramienta, asegúrate de que tus archivos cumplan con el siguiente layout:
-        
+
         1. **Forecast (Anterior y Nuevo):**
            * Debe cargarse en formato **tabular**.
            * Debe contener la columna **Producto** (nombre o identificador del Producto Terminado).
            * Debe contener la columna **Unidad de medida**.
            * Debe poseer las columnas de **Meses** de planificación con su respectiva **Proyección de venta por mes** (ej. *ene, feb, mar...*).
-        
+
         2. **Estructura BOM (Lista de Materiales):**
            * Debe contener una relación del **Producto**, su **Componente** (o Material) y la **Cantidad requerida** (Factor de explosión).
 
@@ -316,15 +308,15 @@ def main():
             df_presentacion = df_filtrado.rename(columns=cols_renombrar)
 
             formatos = {
-                "Demanda Requerida Ant (Prod)": "{:.0f}",
-                "Demanda Requerida Nueva (Prod)": "{:.0f}",
-                "Variación Requerida (Abs)": "{:+,.0f}",
-                "Variación Total Componente": "{:+,.0f}",
+                "Demanda Requerida Ant (Prod)": "{:.1f}",
+                "Demanda Requerida Nueva (Prod)": "{:.1f}",
+                "Variación Requerida (Abs)": "{:+,.1f}",
+                "Variación Total Componente": "{:+,.1f}",
                 "Variación % Total Componente": "{:+,.1f}%",
                 "% Influencia en Variación": "{:+,.1f}%"
             }
             if has_lt:
-                formatos["Lead Time (Días)"] = "{:.0f}"
+                formatos["Lead Time (Días)"] = "{:.1f}"
 
             st.dataframe(df_presentacion.style.format(formatos))
 
