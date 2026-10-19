@@ -3,6 +3,18 @@ import pandas as pd
 import numpy as np
 import os
 
+
+def calcular_desviacion_segura(real, forecast):
+    if forecast == 0 or pd.isna(forecast):
+        if real > 0:
+            return 100.0  # +100% si es componente nuevo
+        return 0.0
+    if real == 0 or pd.isna(real):
+        if forecast > 0:
+            return -100.0 # -100% si está descontinuado
+        return 0.0
+    return ((real - forecast) / forecast) * 100.0
+
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
 
