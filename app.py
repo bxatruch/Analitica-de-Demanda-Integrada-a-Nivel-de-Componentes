@@ -166,7 +166,7 @@ def main():
 
         df_filtrado = final_df[final_df["Impacto Componente"].isin(filtro_impacto)].sort_values(by=["Material", "Var_Abs_Prod"], ascending=[True, False])
 
-        df_presentacion = df_filtrado.rename(columns={
+        df_presentacion = df_filtrado.rename(columns={ 
             "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
             "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
             "Var_Abs_Prod": "Variación Requerida (Abs)",
@@ -184,7 +184,7 @@ def main():
             "% Influencia en Variación": "{:+,.1f}%"
         }))
 
-        # --- SUGERENCIAS ---
+        # --- SUGERENCIAS (Corregido sin saltos de línea físicos dentro del string para evitar SyntaxError) ---
         st.write("### 💡 Sugerencias Estratégicas (Optimización de MPS y Cobertura de Componentes)")
         materiales_criticos_up = totales_unicos[totales_unicos["Impacto"] == "🔴 Incremento Crítico"]["Material"].tolist()
         materiales_criticos_down = totales_unicos[totales_unicos["Impacto"] == "🔵 Disminución Crítica"]["Material"].tolist()
@@ -193,12 +193,9 @@ def main():
         with col_sug1:
             st.markdown("#### 📦 Cobertura de Componentes e Inventario")
             if materiales_criticos_up:
-                st.warning(f"⚠️ **Riesgo de Desabastecimiento:** Los siguientes componentes muestran incrementos críticos: **{', '.join(materiales_criticos_up)}**. Recomendamos:
-- Aumentar temporalmente el stock de seguridad.
-- Adelantar las órdenes de compra con proveedores con mayor Lead Time.")
+                st.warning(f"⚠️ **Riesgo de Desabastecimiento:** Los siguientes componentes muestran incrementos críticos: **{', '.join(materiales_criticos_up)}**. Recomendamos:\n- Aumentar temporalmente el stock de seguridad.\n- Adelantar las órdenes de compra con proveedores con mayor Lead Time.")
             if materiales_criticos_down:
-                st.info(f"📉 **Riesgo de Sobre-inventario:** Se detectó baja en la demanda para: **{', '.join(materiales_criticos_down)}**.
-- Sugerimos posponer las órdenes abiertas o entregas en tránsito para evitar sobre-costos de almacenamiento.")
+                st.info(f"📉 **Riesgo de Sobre-inventario:** Se detectó baja en la demanda para: **{', '.join(materiales_criticos_down)}**.\n- Sugerimos posponer las órdenes abiertas o entregas en tránsito para evitar sobre-costos de almacenamiento.")
             if not materiales_criticos_up and not materiales_criticos_down:
                 st.success("✅ Todos los componentes muestran comportamientos estables dentro de los rangos definidos.")
 
@@ -216,36 +213,36 @@ def main():
         if df_historico_ventas is not None:
             st.write("### 🔮 Generador Automático de Proyecciones de Venta")
             st.write("Analiza estadísticamente el histórico de ventas reales para proyectar los próximos períodos.")
-            
+
             num_periodos = st.number_input("Número de meses/períodos a proyectar:", min_value=1, max_value=12, value=3, step=1)
-            
+
             if st.button("Generar Proyección Estadística"):
                 col_prod_hist = [c for c in df_historico_ventas.columns if "prod" in c.lower()][0]
                 df_hist_clean = df_historico_ventas.copy().rename(columns={col_prod_hist: "Producto"})
                 cols_numericas = df_hist_clean.select_dtypes(include=[np.number]).columns.tolist()
-                
+
                 if len(cols_numericas) >= 2:
                     proyecciones = []
                     for idx, row in df_hist_clean.iterrows():
                         y = row[cols_numericas].values
                         x = np.arange(len(y))
                         slope, intercept = np.polyfit(x, y, 1)
-                        
+
                         proy_row = {"Producto": row["Producto"]}
                         for p in range(1, num_periodos + 1):
                             val_proy = max(0, int(slope * (len(y) + p - 1) + intercept))
                             proy_row[f"Proyección Mes {p}"] = val_proy
                         proyecciones.append(proy_row)
-                    
+
                     df_proy_final = pd.DataFrame(proyecciones)
                     st.success("✅ Proyección calculada mediante regresión lineal sobre el histórico de ventas.")
                     st.dataframe(df_proy_final)
-                    
+
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
                         df_proy_final.to_excel(writer, index=False, sheet_name='Proyecciones')
                     processed_data = output.getvalue()
-                    
+
                     st.download_button(
                         label="📥 Descargar Proyección en Excel",
                         data=processed_data,
