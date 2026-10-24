@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Archivo de aplicación Streamlit auto-generado.
-Contiene la funcionalidad de explosión de BOM, comparación de forecasts, sugerencias estratégicas y proyección estadística.
+Contiene la funcionalidad de explosión de BOM con Forecast y opción de MPS.
 """
 import streamlit as st
 import pandas as pd
@@ -19,7 +19,7 @@ def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
 
     st.title("📊 Explosión y Comparador de Demandas con BOM")
-    st.subheader("Sube tus Forecasts mensuales y tu BOM para analizar variaciones consolidadas")
+    st.subheader("Sube tu Forecast consolidado, tu BOM y tu MPS para analizar variaciones")
 
     # Panel lateral para configurar umbrales de alerta
     st.sidebar.header("⚙️ Configuración de Alertas")
@@ -27,23 +27,22 @@ def main():
     umbral_bajada = st.sidebar.slider("Umbral de Disminución Crítica (%)", min_value=-200, max_value=-10, value=-30, step=5)
 
     st.write("### 📂 Carga de Archivos de Planificación")
-    use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts + Histórico de Ventas)", value=False)
+    use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecast + MPS + Histórico de Ventas)", value=False)
 
     if use_demo:
-        df_fc_ant = pd.DataFrame({
+        df_forecast = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
-            "01-ene": [1000, 500, 300],
-            "01-feb": [1100, 400, 350]
-        })
-        df_fc_nuevo = pd.DataFrame({
-            "Producto": ["Producto A", "Producto B", "Producto C"],
-            "01-ene": [1200, 300, 300],
-            "01-feb": [1500, 200, 400]
+            "Demanda Anterior": [1000, 500, 300],
+            "Demanda Nueva": [1200, 300, 300]
         })
         df_bom = pd.DataFrame({
             "Producto": ["Producto A", "Producto A", "Producto B", "Producto C"],
             "Componente": ["Componente A", "Componente B", "Componente A", "Componente C"],
             "Cantidad requerida": [5, 2, 3, 4]
+        })
+        df_mps = pd.DataFrame({
+            "Producto": ["Producto A", "Producto B", "Producto C"],
+            "Cantidad Programada MPS": [1100, 400, 350]
         })
         df_historico_ventas = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
@@ -51,28 +50,31 @@ def main():
             "Mes -2": [950, 480, 290],
             "Mes -1": [1100, 520, 310]
         })
-        st.success("Cargados datos de demostración con estructura mensual e histórico de ventas.")
+        st.success("Cargados datos de demostración con forecast consolidado, MPS e histórico de ventas.")
     else:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv", "xlsx"])
+            file_forecast = st.file_uploader("1. Archivo de Forecast", type=["csv", "xlsx"])
         with col2:
-            file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv", "xlsx"])
+            file_bom = st.file_uploader("2. Estructura BOM (Componentes)", type=["csv", "xlsx"])
         with col3:
-            file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv", "xlsx"])
+            file_mps = st.file_uploader("3. Plan Maestro de Producción (MPS) (Opcional)", type=["csv", "xlsx"])
         with col4:
             file_historico = st.file_uploader("4. Histórico de Ventas Reales (Opcional)", type=["csv", "xlsx"])
 
-        if file_ant and file_nuevo and file_bom:
-            df_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith(".csv") else pd.read_excel(file_ant)
-            df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith(".csv") else pd.read_excel(file_nuevo)
+        if file_forecast and file_bom:
+            df_forecast = pd.read_csv(file_forecast) if file_forecast.name.endswith(".csv") else pd.read_excel(file_forecast)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith(".csv") else pd.read_excel(file_bom)
+            if file_mps:
+                df_mps = pd.read_csv(file_mps) if file_mps.name.endswith(".csv") else pd.read_excel(file_mps)
+            else:
+                df_mps = None
             if file_historico:
                 df_historico_ventas = pd.read_csv(file_historico) if file_historico.name.endswith(".csv") else pd.read_excel(file_historico)
             else:
                 df_historico_ventas = None
         else:
-            st.warning("Por favor sube los tres archivos requeridos (Forecast Anterior, Forecast Nuevo y BOM) para proceder.")
+            st.warning("Por favor sube los archivos requeridos (Forecast y BOM) para proceder.")
             return
 
     try:
@@ -85,33 +87,27 @@ def main():
         col_prod_bom = [c for c in df_bom_clean.columns if "prod" in c.lower()][0]
         df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
 
-        palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+        col_prod_fc = [c for c in df_forecast.columns if "prod" in c.lower()][0]
+        df_fc_clean = df_forecast.copy().rename(columns={col_prod_fc: "Producto"})
 
-        col_meses_ant = [c for c in df_fc_ant.columns if any(m in c.lower() for m in palabras_mes)]
-        col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in c.lower() for m in palabras_mes)]
+        cols_numericas = df_fc_clean.select_dtypes(include=[np.number]).columns.tolist()
 
-        col_prod_ant = [c for c in df_fc_ant.columns if "prod" in c.lower()][0]
-        col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in c.lower()][0]
+        if len(cols_numericas) < 2:
+            st.error("El archivo de Forecast debe contener al menos 2 columnas numéricas para comparar.")
+            return
 
-        df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
-        df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
+        col_ant = cols_numericas[-2]
+        col_nue = cols_numericas[-1]
 
-        if col_meses_ant:
-            df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
-        else:
-            col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
-            df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_dem_ant]
+        st.info(f"Comparando automáticamente: **{col_ant}** (Anterior) vs **{col_nue}** (Nuevo)")
 
-        if col_meses_nue:
-            df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
-        else:
-            col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
-            df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_dem_nue]
+        df_fc_clean["Demanda_Ant"] = df_fc_clean[col_ant]
+        df_fc_clean["Demanda_Nueva"] = df_fc_clean[col_nue]
 
-        merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
+        merged_ant = pd.merge(df_bom_clean, df_fc_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
         merged_ant["Demanda_Comp_Ant"] = merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]
 
-        merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
+        merged_nuevo = pd.merge(df_bom_clean, df_fc_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
         merged_nuevo["Demanda_Comp_Nueva"] = merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]
 
         dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
@@ -184,7 +180,7 @@ def main():
             "% Influencia en Variación": "{:+,.1f}%"
         }))
 
-        # --- SUGERENCIAS (Corregido sin saltos de línea físicos dentro del string para evitar SyntaxError) ---
+        # --- SUGERENCIAS ---
         st.write("### 💡 Sugerencias Estratégicas (Optimización de MPS y Cobertura de Componentes)")
         materiales_criticos_up = totales_unicos[totales_unicos["Impacto"] == "🔴 Incremento Crítico"]["Material"].tolist()
         materiales_criticos_down = totales_unicos[totales_unicos["Impacto"] == "🔵 Disminución Crítica"]["Material"].tolist()
@@ -208,6 +204,13 @@ def main():
                 st.markdown("2. **Alineación de Capacidad:** Revisar los turnos de trabajo y disponibilidad de mano de obra para las familias afectadas por incrementos de volumen.")
             else:
                 st.write("No se requieren modificaciones de capacidad inmediatas en el MPS actual.")
+
+        # --- SECCIÓN MPS ---
+        if not (use_demo is False and file_mps is None):
+            st.write("### ⚙️ Plan Maestro de Producción (MPS)")
+            col_prod_mps = [c for c in df_mps.columns if "prod" in c.lower()][0]
+            df_mps_clean = df_mps.copy().rename(columns={col_prod_mps: "Producto"})
+            st.dataframe(df_mps_clean)
 
         # --- PROYECCIONES ---
         if df_historico_ventas is not None:
