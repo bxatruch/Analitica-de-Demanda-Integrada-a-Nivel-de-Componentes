@@ -19,7 +19,7 @@ def obtener_plantilla_bytes(ruta_archivo):
 def obtener_columna_interactiva(df, palabras_clave, nombre_concepto, nombre_archivo, key_prefix):
     """
     Intenta buscar una columna que contenga las palabras clave de forma automática.
-    Si no la encuentra, despliega un selectbox en Streamlit para que el usuario la seleccione manualmente.
+    Si no la encuentra, selecciona automáticamente la primera columna disponible sin preguntar al usuario.
     """
     columnas = df.columns.tolist()
     coincidencias = [c for c in columnas if any(p in str(c).lower() for p in palabras_clave)]
@@ -27,13 +27,7 @@ def obtener_columna_interactiva(df, palabras_clave, nombre_concepto, nombre_arch
     if coincidencias:
         return coincidencias[0]
 
-    st.warning(f"⚠️ No se detectó automáticamente la columna de **{nombre_concepto}** en el archivo **{nombre_archivo}**.")
-    col_seleccionada = st.selectbox(
-        f"Por favor, selecciona qué columna corresponde a **{nombre_concepto}**:",
-        options=columnas,
-        key=f"{key_prefix}_select_{nombre_concepto.replace(' ', '_').lower()}"
-    )
-    return col_seleccionada
+    return columnas[0] if columnas else None
 
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
