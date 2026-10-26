@@ -41,7 +41,7 @@ def main():
                 data=bytes_f,
                 file_name=name_f,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="btn_dl_forecast"
+                key="btn_dl_forecast_v2"
             )
         else:
             st.caption("⚠️ `assets/plantilla_forecast.xlsx` no encontrada.")
@@ -55,7 +55,7 @@ def main():
                 data=bytes_b,
                 file_name=name_b,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="btn_dl_bom"
+                key="btn_dl_bom_v2"
             )
         else:
             st.caption("⚠️ `assets/plantilla_bom.xlsx` no encontrada.")
@@ -69,7 +69,7 @@ def main():
                 data=bytes_l,
                 file_name=name_l,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="btn_dl_lt"
+                key="btn_dl_lt_v2"
             )
         else:
             st.caption("⚠️ `assets/plantilla_lead_times.xlsx` no encontrada.")
@@ -128,24 +128,24 @@ def main():
     # Procesamiento y Explosión de Materiales
     try:
         # 1. Estandarización Dinámica de la BOM
-        col_material = [c for c in df_bom.columns if any(p in c.lower() for p in ["material", "componente", "part_number"])][0]
-        col_cant_bom = [c for c in df_bom.columns if any(p in c.lower() for p in ["cant", "qty", "factor", "requerida"])][0]
+        col_material = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["material", "componente", "part_number"])][0]
+        col_cant_bom = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["cant", "qty", "factor", "requerida"])][0]
 
         df_bom_clean = df_bom.copy()
         df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM"}, inplace=True)
 
         # Buscar columna Producto
-        col_prod_bom = [c for c in df_bom_clean.columns if "prod" in c.lower()][0]
+        col_prod_bom = [c for c in df_bom_clean.columns if "prod" in str(c).lower()][0]
         df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
 
         # 2. Identificación de Columnas Temporales (Meses) en los Forecasts
         palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-        col_meses_ant = [c for c in df_fc_ant.columns if any(m in c.lower() for m in palabras_mes)]
-        col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in c.lower() for m in palabras_mes)]
+        col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
+        col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
 
-        col_prod_ant = [c for c in df_fc_ant.columns if "prod" in c.lower()][0]
-        col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in c.lower()][0]
+        col_prod_ant = [c for c in df_fc_ant.columns if "prod" in str(c).lower()][0]
+        col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in str(c).lower()][0]
 
         df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
         df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
@@ -154,13 +154,13 @@ def main():
         if col_meses_ant:
             df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
         else:
-            col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
+            col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
             df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_dem_ant]
 
         if col_meses_nue:
             df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
         else:
-            col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
+            col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
             df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_dem_nue]
 
         # --- EXPLOSIÓN DE DEMANDA ANTERIOR ---
