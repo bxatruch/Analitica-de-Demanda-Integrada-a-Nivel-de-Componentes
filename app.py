@@ -5,10 +5,10 @@ import numpy as np
 import os
 
 def obtener_plantilla_bytes(ruta_archivo):
-    """"
+    """
     Lee un archivo local de forma segura y devuelve sus bytes junto con su nombre.
     Útil para st.download_button.
-    """"
+    """
     if os.path.exists(ruta_archivo):
         with open(ruta_archivo, "rb") as f:
             datos_bytes = f.read()
@@ -17,10 +17,10 @@ def obtener_plantilla_bytes(ruta_archivo):
     return None, None
 
 def obtener_columna_interactiva(df, palabras_clave, nombre_concepto, nombre_archivo, key_prefix):
-    """"
+    """
     Intenta buscar una columna que contenga las palabras clave de forma automática.
     Si no la encuentra, despliega un selectbox en Streamlit para que el usuario la seleccione manualmente.
-    """"
+    """
     columnas = df.columns.tolist()
     coincidencias = [c for c in columnas if any(p in str(c).lower() for p in palabras_clave)]
 
