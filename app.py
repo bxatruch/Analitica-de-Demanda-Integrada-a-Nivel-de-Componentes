@@ -5,10 +5,10 @@ import numpy as np
 import os
 
 def obtener_plantilla_bytes(ruta_archivo):
-    """
+    """"
     Lee un archivo local de forma segura y devuelve sus bytes junto con su nombre.
     Útil para st.download_button.
-    """
+    """"
     if os.path.exists(ruta_archivo):
         with open(ruta_archivo, "rb") as f:
             datos_bytes = f.read()
@@ -17,10 +17,10 @@ def obtener_plantilla_bytes(ruta_archivo):
     return None, None
 
 def obtener_columna_interactiva(df, palabras_clave, nombre_concepto, nombre_archivo, key_prefix):
-    """
+    """"
     Intenta buscar una columna que contenga las palabras clave de forma automática.
     Si no la encuentra, despliega un selectbox en Streamlit para que el usuario la seleccione manualmente.
-    """
+    """"
     columnas = df.columns.tolist()
     coincidencias = [c for c in columnas if any(p in str(c).lower() for p in palabras_clave)]
 
@@ -121,7 +121,7 @@ def main():
             "Componente": ["Componente A", "Componente B", "Componente A", "Componente C"],
             "Cantidad requerida": [5, 2, 3, 4]
         })
-        st.success("Cargados datos de demostración con estructura mensual.")
+        st.success("Cargados datos de demostración con estructura de matriz.")
     else:
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -179,10 +179,11 @@ def main():
 
         if col_meses_ant_eval and col_meses_nue_eval:
             st.success(f"📅 Evaluando dinámicamente mes a mes para los bloques: {', '.join(col_meses_ant_eval)}")
-            mes_evaluar = st.selectbox("Selecciona el Mes/Bloque específico a visualizar:", col_meses_ant_eval)
+            mes_evaluar = st.selectbox("Selecciona el Mes específico a comparar:", col_meses_ant_eval)
             idx_mes = col_meses_ant_eval.index(mes_evaluar)
             mes_evaluar_nuevo = col_meses_nue_eval[idx_mes] if idx_mes < len(col_meses_nue_eval) else col_meses_nue_eval[0]
 
+            # El volumen de la demanda se toma de la intersección del mes y producto (directo del forecast)
             df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[mes_evaluar], errors='coerce').fillna(0)
             df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[mes_evaluar_nuevo], errors='coerce').fillna(0)
         else:
