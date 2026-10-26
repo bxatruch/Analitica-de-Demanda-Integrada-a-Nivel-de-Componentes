@@ -160,8 +160,6 @@ def main():
 
         df_bom_clean = df_bom.copy()
         df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM", col_prod_bom: "Producto"}, inplace=True)
-
-        # Forzar columna de cantidad en BOM a numérica
         df_bom_clean["Cantidad_BOM"] = pd.to_numeric(df_bom_clean["Cantidad_BOM"], errors='coerce').fillna(0)
 
         palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
@@ -173,36 +171,25 @@ def main():
         col_meses_ant_eval = col_meses_ant[:cant_bloques]
         col_meses_nue_eval = col_meses_nue[:cant_bloques]
 
-        if col_meses_ant:
-            st.info(f"📅 Evaluando {len(col_meses_ant_eval)} bloque(s) de Forecast Anterior: {', '.join(col_meses_ant_eval)}")
-        if col_meses_nue:
-            st.info(f"📅 Evaluando {len(col_meses_nue_eval)} bloque(s) de Forecast Nuevo: {', '.join(col_meses_nue_eval)}")
-
         col_prod_ant = obtener_columna_interactiva(df_fc_ant, ["prod"], "Producto", "Forecast Anterior", "fc_ant")
         col_prod_nue = obtener_columna_interactiva(df_fc_nuevo, ["prod"], "Producto", "Forecast Nuevo", "fc_nue")
 
         df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
         df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
 
-        if col_meses_ant_eval:
-            for m in col_meses_ant_eval:
-                df_fc_ant_clean[m] = pd.to_numeric(df_fc_ant_clean[m], errors='coerce').fillna(0)
-            df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant_eval].sum(axis=1)
+        if col_meses_ant_eval and col_meses_nue_eval:
+            st.success(f"📅 Evaluando dinámicamente mes a mes para los bloques: {', '.join(col_meses_ant_eval)}")
+            mes_evaluar = st.selectbox("Selecciona el Mes/Bloque específico a visualizar:", col_meses_ant_eval)
+            idx_mes = col_meses_ant_eval.index(mes_evaluar)
+            mes_evaluar_nuevo = col_meses_nue_eval[idx_mes] if idx_mes < len(col_meses_nue_eval) else col_meses_nue_eval[0]
+
+            df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[mes_evaluar], errors='coerce').fillna(0)
+            df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[mes_evaluar_nuevo], errors='coerce').fillna(0)
         else:
             col_dem_ant = obtener_columna_interactiva(df_fc_ant_clean, ["demanda", "cant", "vol", "total"], "Cantidad / Volumen Demanda", "Forecast Anterior", "fc_ant_vol")
-            df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[col_dem_ant], errors='coerce').fillna(0)
-
-        if col_meses_nue_eval:
-            for m in col_meses_nue_eval:
-                df_fc_nuevo_clean[m] = pd.to_numeric(df_fc_nuevo_clean[m], errors='coerce').fillna(0)
-            df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue_eval].sum(axis=1)
-        else:
             col_dem_nue = obtener_columna_interactiva(df_fc_nuevo_clean, ["demanda", "cant", "vol", "total"], "Cantidad / Volumen Demanda", "Forecast Nuevo", "fc_nue_vol")
+            df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[col_dem_ant], errors='coerce').fillna(0)
             df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[col_dem_nue], errors='coerce').fillna(0)
-
-        # Garantizar que las demandas consolidadas sean numéricas finales
-        df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean["Demanda_Ant"], errors='coerce').fillna(0)
-        df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean["Demanda_Nueva"], errors='coerce').fillna(0)
 
         # --- EXPLOSIÓN ---
         merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
