@@ -46,17 +46,17 @@ def main():
     
     col_temp1, col_temp2, col_temp3 = st.columns(3)
     
-    # Descargar en memoria los bytes de cada archivo
-    data_fc_ant = descargar_plantilla("Forecast_Anterior.xlsx")
-    data_fc_nue = descargar_plantilla("Forecast_Nuevo.xlsx")
-    data_bom = descargar_plantilla("BOM_Excel.xlsx")
+    # Descargar en memoria los bytes de cada archivo desde el repositorio usando los nuevos nombres
+    data_fc_ant = descargar_plantilla("plantilla_forecast.xlsx")
+    data_fc_nue = descargar_plantilla("plantilla_forecast.xlsx")
+    data_bom = descargar_plantilla("plantilla_bom.xlsx")
 
     with col_temp1:
         if data_fc_ant:
             st.download_button(
                 label="📁 Descargar: Forecast Anterior",
                 data=data_fc_ant,
-                file_name="Forecast_Anterior.xlsx",
+                file_name="plantilla_forecast_anterior.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
@@ -68,7 +68,7 @@ def main():
             st.download_button(
                 label="📁 Descargar: Forecast Nuevo",
                 data=data_fc_nue,
-                file_name="Forecast_Nuevo.xlsx",
+                file_name="plantilla_forecast_nuevo.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
@@ -80,7 +80,7 @@ def main():
             st.download_button(
                 label="📁 Descargar: BOM (Estructura)",
                 data=data_bom,
-                file_name="BOM_Excel.xlsx",
+                file_name="plantilla_bom.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
