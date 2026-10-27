@@ -46,47 +46,33 @@ def main():
 
     # --- SECCIÓN DE DESCARGA DIRECTA DE PLANTILLAS BASE --- 
     st.markdown("### 📐 Descarga de Plantillas Base")
-    st.write("Descarga de manera directa e interactiva los archivos de ejemplo para estructurar tus datos:")
+    st.write("Descarga de manera directa los archivos modelo para estructurar tus datos:")
     
     col_temp1, col_temp2, col_temp3 = st.columns(3)
     
-    # Descargar en memoria utilizando los nombres físicos reales en tu GitHub assets
-    data_fc_ant, err_fc_ant = descargar_plantilla("Forecast_Anterior.xlsx")
-    data_fc_nue, err_fc_nue = descargar_plantilla("Forecast_Nuevo.xlsx")
-    data_bom, err_bom = descargar_plantilla("BOM_Excel.xlsx")
+    # Descargar los bytes reales de los archivos en GitHub assets
+    data_forecast, err_forecast = descargar_plantilla("plantilla_forecast.xlsx")
+    data_bom, err_bom = descargar_plantilla("plantilla_bom.xlsx")
+    data_lt, err_lead = descargar_plantilla("plantilla_lead_times.xlsx")
 
     with col_temp1:
-        if data_fc_ant:
+        if data_forecast:
             st.download_button(
-                label="📁 Descargar: Forecast Anterior",
-                data=data_fc_ant,
-                file_name="plantilla_forecast_anterior.xlsx",
+                label="📁 Descargar: Plantilla Forecast",
+                data=data_forecast,
+                file_name="plantilla_forecast.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
         else:
-            st.error("Error plantilla Forecast Anterior")
-            if err_fc_ant:
-                st.caption(f"⚠️ {err_fc_ant}")
+            st.error("Error plantilla Forecast")
+            if err_forecast:
+                st.caption(f"⚠️ {err_forecast}")
             
     with col_temp2:
-        if data_fc_nue:
-            st.download_button(
-                label="📁 Descargar: Forecast Nuevo",
-                data=data_fc_nue,
-                file_name="plantilla_forecast_nuevo.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        else:
-            st.error("Error plantilla Forecast Nuevo")
-            if err_fc_nue:
-                st.caption(f"⚠️ {err_fc_nue}")
-            
-    with col_temp3:
         if data_bom:
             st.download_button(
-                label="📁 Descargar: BOM (Estructura)",
+                label="📁 Descargar: Plantilla BOM",
                 data=data_bom,
                 file_name="plantilla_bom.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -96,6 +82,20 @@ def main():
             st.error("Error plantilla BOM")
             if err_bom:
                 st.caption(f"⚠️ {err_bom}")
+            
+    with col_temp3:
+        if data_lt:
+            st.download_button(
+                label="📁 Descargar: Lead Times",
+                data=data_lt,
+                file_name="plantilla_lead_times.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        else:
+            st.error("Error plantilla Lead Times")
+            if err_lead:
+                st.caption(f"⚠️ {err_lead}")
 
     st.markdown("---")
 
