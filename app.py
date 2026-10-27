@@ -311,16 +311,16 @@ def main():
                 alertas_rojas = df_presentacion[df_presentacion["Impacto del Componente"] == "🔴 Incremento Crítico"]["Material"].unique().tolist()[:10]
                 alertas_azules = df_presentacion[df_presentacion["Impacto del Componente"] == "🔵 Disminución Crítica"]["Material"].unique().tolist()[:10]
 
-                contexto_ia = f"Actúa como un experto consultor de Cadena de Suministro y Compras.
-" +                               f"Analizaste un cambio de Forecast de Demanda de Producto Terminado explosionado con su BOM.
-" +                               f"Resultados globales actuales:
-" +                               f"- Incrementos Críticos (Alerta Roja): {totales.get('🔴 Incremento Crítico', 0)} componentes.
-" +                               f"- Disminuciones Críticas (Alerta Azul): {totales.get('🔵 Disminución Crítica', 0)} componentes.
-" +                               f"- Componentes estables: {totales.get('🟢 Estable', 0)}.
-" +                               f"- Muestra de componentes con Incremento Crítico: {alertas_rojas}.
-" +                               f"- Muestra de componentes con Disminución Crítica: {alertas_azules}.
+                contexto_ia = f'''Actúa como un experto consultor de Cadena de Suministro y Compras.
+Analizaste un cambio de Forecast de Demanda de Producto Terminado explosionado con su BOM.
+Resultados globales actuales:
+- Incrementos Críticos (Alerta Roja): {totales.get("🔴 Incremento Crítico", 0)} componentes.
+- Disminuciones Críticas (Alerta Azul): {totales.get("🔵 Disminución Crítica", 0)} componentes.
+- Componentes estables: {totales.get("🟢 Estable", 0)}.
+- Muestra de componentes con Incremento Crítico: {alertas_rojas}.
+- Muestra de componentes con Disminución Crítica: {alertas_azules}.
 
-" +                               f"Responde de forma concisa y con foco estratégico de compras a las dudas del planificador."
+Responde de forma concisa y con foco estratégico de compras a las dudas del planificador.'''
 
                 # Mostrar historial de chat existente
                 for msg in st.session_state.chat_history:
