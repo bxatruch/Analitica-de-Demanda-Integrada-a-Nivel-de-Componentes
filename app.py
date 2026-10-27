@@ -11,6 +11,8 @@ def main():
     # Inicializar estados de la aplicación
     if "analizar" not in st.session_state:
         st.session_state.analizar = False
+    if "uploader_key" not in st.session_state:
+        st.session_state.uploader_key = 0
 
     # Panel lateral para configurar umbrales de alerta y controles de flujo
     st.sidebar.header("⚙️ Configuración de Alertas")
@@ -20,9 +22,10 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.header("🎮 Control de Ejecución")
 
-    # Botón para reiniciar todo el análisis
+    # Botón para reiniciar todo el análisis y vaciar archivos cargados cambiando el uploader_key
     if st.sidebar.button("🔄 Resetear Aplicación", use_container_width=True):
         st.session_state.analizar = False
+        st.session_state.uploader_key += 1
         st.rerun()
 
     st.write("### 📂 Carga de Archivos de Planificación")
@@ -56,12 +59,14 @@ def main():
         st.session_state.analizar = True
     else:
         col1, col2, col3 = st.columns(3)
+        # Usamos st.session_state.uploader_key para limpiar los inputs al resetear
+        key_suffix = f"_reset_{st.session_state.uploader_key}"
         with col1: 
-            file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv", "xlsx"])
+            file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv", "xlsx"], key=f"file_ant{key_suffix}")
         with col2:
-            file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv", "xlsx"])
+            file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv", "xlsx"], key=f"file_nuevo{key_suffix}")
         with col3:
-            file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv", "xlsx"])
+            file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv", "xlsx"], key=f"file_bom{key_suffix}")
 
         if file_ant and file_nuevo and file_bom:
             df_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
