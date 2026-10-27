@@ -45,11 +45,10 @@ def main():
             "Cantidad requerida": [5, 2, 3, 4]
         })
         st.success("Cargados datos de demostración con estructura mensual.")
-        # Los datos de demostración están listos, habilitamos el análisis directamente
         st.session_state.analizar = True
     else:
         col1, col2, col3 = st.columns(3)
-        with col1:
+        with col1: 
             file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv", "xlsx"])
         with col2:
             file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv", "xlsx"])
@@ -61,9 +60,10 @@ def main():
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            # Convertir todas las columnas del forecast a strings para facilitar el comparativo dinámico
-            df_fc_ant.columns = df_fc_ant.columns.astype(str)
-            df_fc_nuevo.columns = df_fc_nuevo.columns.astype(str)
+            # Limpiar espacios en blanco en los nombres de las columnas
+            df_fc_ant.columns = df_fc_ant.columns.astype(str).str.strip()
+            df_fc_nuevo.columns = df_fc_nuevo.columns.astype(str).str.strip()
+            df_bom.columns = df_bom.columns.astype(str).str.strip()
 
             # Mostrar botón para iniciar análisis una vez subidos los archivos
             if st.button("🚀 Correr Análisis", type="primary", use_container_width=True):
@@ -76,38 +76,42 @@ def main():
     # Procesamiento y Explosión de Materiales (se ejecuta solo si el botón de análisis fue pulsado)
     if st.session_state.analizar:
         try:
-            # 1. Estandarización Dinámica de la BOM
-            col_material = [c for c in df_bom.columns if any(p in c.lower() for p in ["material", "componente", "part_number"])][0]
-            col_cant_bom = [c for c in df_bom.columns if any(p in c.lower() for p in ["cant", "qty", "factor", "requerida"])][0]
+            # 1. Estandarización Dinámica de la BOM de manera segura (evitando IndexError)
+            col_material_candidates = [c for c in df_bom.columns if any(p in c.lower() for p in ["componente", "material", "part", "insumo"])]
+            col_material = col_material_candidates[0] if col_material_candidates else df_bom.columns[1] if len(df_bom.columns) > 1 else df_bom.columns[0]
+
+            col_cant_candidates = [c for c in df_bom.columns if any(p in c.lower() for p in ["cant", "qty", "factor", "requerida", "uso"])]
+            col_cant_bom = col_cant_candidates[0] if col_cant_candidates else df_bom.columns[2] if len(df_bom.columns) > 2 else df_bom.columns[0]
+
+            col_prod_candidates = [c for c in df_bom.columns if any(p in c.lower() for p in ["prod", "term", "sku", "padre"])]
+            col_prod_bom = col_prod_candidates[0] if col_prod_candidates else df_bom.columns[0]
 
             df_bom_clean = df_bom.copy()
-            df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM"}, inplace=True)
+            df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM", col_prod_bom: "Producto"}, inplace=True)
 
-            # Buscar columna Producto
-            col_prod_bom = [c for c in df_bom_clean.columns if "prod" in c.lower()][0]
-            df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
-
-            # 2. Identificación de Columnas Temporales (Meses) en los Forecasts
+            # 2. Identificación de Columnas Temporales (Meses) en los Forecasts de manera segura
             palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-            # Aseguramos que los nombres de las columnas se comparen como strings en minúsculas
             col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
             col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
 
-            col_prod_ant = [c for c in df_fc_ant.columns if "prod" in str(c).lower()][0]
-            col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in str(c).lower()][0]
+            col_prod_ant_candidates = [c for c in df_fc_ant.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo"])]
+            col_prod_ant = col_prod_ant_candidates[0] if col_prod_ant_candidates else df_fc_ant.columns[0]
+
+            col_prod_nue_candidates = [c for c in df_fc_nuevo.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo"])]
+            col_prod_nue = col_prod_nue_candidates[0] if col_prod_nue_candidates else df_fc_nuevo.columns[0]
 
             df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
             df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
 
-            # Consolidar Demanda Anual sumando todas las columnas de meses encontradas
+            # Consolidar Demanda Anual o Mensual sumando todas las columnas de meses encontradas
             if col_meses_ant:
-                # Convertir los valores de las columnas identificadas a numérico para evitar errores al sumar
                 for col in col_meses_ant:
                     df_fc_ant_clean[col] = pd.to_numeric(df_fc_ant_clean[col], errors="coerce").fillna(0)
                 df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
             else:
-                col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
+                col_dem_ant_cand = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total"])]
+                col_dem_ant = col_dem_ant_cand[0] if col_dem_ant_cand else df_fc_ant_clean.columns[1] if len(df_fc_ant_clean.columns) > 1 else df_fc_ant_clean.columns[0]
                 df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[col_dem_ant], errors="coerce").fillna(0)
 
             if col_meses_nue:
@@ -115,7 +119,8 @@ def main():
                     df_fc_nuevo_clean[col] = pd.to_numeric(df_fc_nuevo_clean[col], errors="coerce").fillna(0)
                 df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
             else:
-                col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
+                col_dem_nue_cand = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total"])]
+                col_dem_nue = col_dem_nue_cand[0] if col_dem_nue_cand else df_fc_nuevo_clean.columns[1] if len(df_fc_nuevo_clean.columns) > 1 else df_fc_nuevo_clean.columns[0]
                 df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[col_dem_nue], errors="coerce").fillna(0)
 
             # --- EXPLOSIÓN DE DEMANDA ANTERIOR ---
@@ -125,6 +130,10 @@ def main():
             # --- EXPLOSIÓN DE DEMANDA NUEVA ---
             merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
             merged_nuevo["Demanda_Comp_Nueva"] = merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]
+
+            if merged_ant.empty and merged_nuevo.empty:
+                st.error("⚠️ No se encontraron coincidencias de Productos entre tu archivo de BOM y los Forecasts. Por favor, verifica que los códigos de producto coincidan exactamente en ambos archivos.")
+                return
 
             # 1. Agrupar por Componente y Producto Terminado para el detalle cruzado
             dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
