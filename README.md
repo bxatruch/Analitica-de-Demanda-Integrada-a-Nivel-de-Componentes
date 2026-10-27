@@ -15,7 +15,7 @@ Esta aplicación web interactiva ayuda a los **Purchasing Planners** (Planificad
 
 ## ✨ Características Clave
 
-* **Carga de Datos Flexible:** Soporte para archivos `.xlsx` para el forecast anterior, forecast nuevo y estructura BOM.
+* **Carga de Datos Flexible:** Soporte para archivos `.csv` y `.xlsx` para el forecast anterior, forecast nuevo y estructura BOM.
 * **Modo de Demostración:** Incluye datos simulados interactivos para probar la lógica de inmediato sin subir archivos propios.
 * **Estandarización Inteligente:** Mapeo automático de nombres de columnas (detectando sinónimos de productos, componentes y cantidades).
 * **Alertas Personalizables:** Deslizadores dinámicos para ajustar los umbrales de incrementos críticos (Rojo) y disminuciones críticas (Azul).
