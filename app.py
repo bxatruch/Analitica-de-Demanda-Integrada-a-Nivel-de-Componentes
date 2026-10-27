@@ -50,10 +50,10 @@ def main():
     
     col_temp1, col_temp2, col_temp3 = st.columns(3)
     
-    # Descargar en memoria los bytes de cada archivo desde el repositorio usando los nuevos nombres
-    data_fc_ant, err_fc_ant = descargar_plantilla("plantilla_forecast.xlsx")
-    data_fc_nue, err_fc_nue = descargar_plantilla("plantilla_forecast.xlsx")
-    data_bom, err_bom = descargar_plantilla("plantilla_bom.xlsx")
+    # Descargar en memoria utilizando los nombres físicos reales en tu GitHub assets
+    data_fc_ant, err_fc_ant = descargar_plantilla("Forecast_Anterior.xlsx")
+    data_fc_nue, err_fc_nue = descargar_plantilla("Forecast_Nuevo.xlsx")
+    data_bom, err_bom = descargar_plantilla("BOM_Excel.xlsx")
 
     with col_temp1:
         if data_fc_ant:
