@@ -13,7 +13,7 @@ except ImportError:
     import google.generativeai as genai
 
 def obtener_api_key_segura():
-    """Intenta obtener la API Key desde userdata de Colab, si falla usa el entorno o un input"""
+    '''Intenta obtener la API Key desde userdata de Colab, si falla usa el entorno o un input'''
     try:
         from google.colab import userdata
         return userdata.get("GEMINI_API_KEY")
@@ -41,10 +41,10 @@ def main():
 
     st.sidebar.markdown("---")
     st.sidebar.header("🔑 Configuración de IA (Gemini)")
-    
+
     # Obtener clave por defecto del sistema
     default_key = obtener_api_key_segura()
-    
+
     # Permitir sobreescribirla o mostrar confirmación de que ya se detectó
     if default_key:
         st.sidebar.success("✅ Gemini API Key detectada desde userdata")
@@ -62,7 +62,7 @@ def main():
         st.session_state.chat_history = []
         st.rerun()
 
-    # --- SECCIÓN DE DESCARGA DIRECTA DE PLANTILLAS BASE --- 
+    # --- SECCIÓN DE DESCARGA DIRECTA DE PLANTILLAS BASE ---
     st.markdown("### 📐 Descarga de Plantillas Base")
     st.markdown("Descarga de manera directa los archivos modelo para estructurar tus datos:")
 
@@ -101,7 +101,7 @@ def main():
     st.markdown("---")
 
     st.write("### 📂 Carga de Archivos de Planificación")
-    use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts)", value=False) 
+    use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts)", value=False)
 
     if use_demo:
         df_fc_ant = pd.DataFrame({
@@ -171,8 +171,8 @@ def main():
 
             palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "-", "/", "2024", "2025", "2026"]
 
-            col_meses_ant_detectados = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id"])]
-            col_meses_nue_detectados = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id"])]
+            col_meses_ant_detectados = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id" ])]
+            col_meses_nue_detectados = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id" ])]
 
             meses_comunes = sorted(list(set(col_meses_ant_detectados).intersection(set(col_meses_nue_detectados))))
 
@@ -297,21 +297,21 @@ def main():
                 "% Influencia en Variación": "{:+,.1f}%"
             }))
 
-            # --- SECCIÓN DE ASISTENTE DE INTELIGENCIA ARTIFICIAL (GEMINI) --- 
+            # --- SECCIÓN DE ASISTENTE DE INTELIGENCIA ARTIFICIAL (GEMINI) ---
             st.markdown("---")
             st.write("### 🤖 Pregúntale a Gemini sobre este Análisis")
-            
+
             if not gemini_key:
                 st.info("🔑 Ingresa tu Gemini API Key en el panel lateral para chatear con los resultados de esta planificación.")
             else:
                 # Configurar clave del SDK
                 genai.configure(api_key=gemini_key)
-                
+
                 # Construir resumen textual del escenario como contexto enriquecido
                 alertas_rojas = df_presentacion[df_presentacion["Impacto del Componente"] == "🔴 Incremento Crítico"]["Material"].unique().tolist()[:10]
                 alertas_azules = df_presentacion[df_presentacion["Impacto del Componente"] == "🔵 Disminución Crítica"]["Material"].unique().tolist()[:10]
-                
-                contexto_ia = f"""Actúa como un experto consultor de Cadena de Suministro y Compras.
+
+                contexto_ia = f"Actúa como un experto consultor de Cadena de Suministro y Compras.
 " +                               f"Analizaste un cambio de Forecast de Demanda de Producto Terminado explosionado con su BOM.
 " +                               f"Resultados globales actuales:
 " +                               f"- Incrementos Críticos (Alerta Roja): {totales.get('🔴 Incremento Crítico', 0)} componentes.
@@ -320,7 +320,7 @@ def main():
 " +                               f"- Muestra de componentes con Incremento Crítico: {alertas_rojas}.
 " +                               f"- Muestra de componentes con Disminución Crítica: {alertas_azules}.
 
-" +                               f"Responde de forma concisa y con foco estratégico de compras a las dudas del planificador."""
+" +                               f"Responde de forma concisa y con foco estratégico de compras a las dudas del planificador."
 
                 # Mostrar historial de chat existente
                 for msg in st.session_state.chat_history:
@@ -329,27 +329,27 @@ def main():
 
                 # Entrada del usuario para el chat
                 user_query = st.chat_input("Ej. ¿Qué acciones inmediatas sugieres para los materiales críticos con incrementos?")
-                
+
                 if user_query:
                     # Agregar y mostrar consulta del usuario
                     st.session_state.chat_history.append({"role": "user", "content": user_query})
                     with st.chat_message("user"):
                         st.write(user_query)
-                        
+
                     with st.spinner("Pensando con Gemini..."):
                         try:
-                            # Inicializar el modelo Gemini 2.5 Flash Lite
-                            model = genai.GenerativeModel("gemini-2.5-flash-lite")
-                            
+                            # Inicializar el modelo Gemini 3.5 Flash Lite
+                            model = genai.GenerativeModel("gemini-3.5-flash-lite")
+
                             # Unir contexto e historial
                             conversacion = [{"role": "user", "parts": [contexto_ia]}]
                             for h in st.session_state.chat_history:
                                 role_mapped = "model" if h["role"] == "assistant" else "user"
                                 conversacion.append({"role": role_mapped, "parts": [h["content"]]})
-                            
+
                             response = model.generate_content(conversacion)
                             respuesta_texto = response.text
-                            
+
                             # Guardar y mostrar respuesta de la IA
                             st.session_state.chat_history.append({"role": "assistant", "content": respuesta_texto})
                             with st.chat_message("assistant"):
