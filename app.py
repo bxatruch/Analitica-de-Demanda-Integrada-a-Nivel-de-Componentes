@@ -1,22 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import urllib.request
-
-@st.cache_data
-def descargar_plantilla(nombre_archivo):
-    """Descarga la plantilla desde GitHub en segundo plano para ofrecerla localmente en Streamlit"""
-    repo_url_raw = "https://raw.githubusercontent.com/Fmeza94/mi-reto/main/assets"
-    url = f"{repo_url_raw}/{nombre_archivo}"
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        )
-        with urllib.request.urlopen(req) as response:
-            return response.read(), None
-    except Exception as e:
-        return None, f"Error al descargar de {url}: {str(e)}"
+import os
 
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
@@ -46,56 +31,39 @@ def main():
 
     # --- SECCIÓN DE DESCARGA DIRECTA DE PLANTILLAS BASE --- 
     st.markdown("### 📐 Descarga de Plantillas Base")
-    st.write("Descarga de manera directa los archivos modelo para estructurar tus datos:")
-    
-    col_temp1, col_temp2, col_temp3 = st.columns(3)
-    
-    # Descargar los bytes reales de los archivos en GitHub assets
-    data_forecast, err_forecast = descargar_plantilla("plantilla_forecast.xlsx")
-    data_bom, err_bom = descargar_plantilla("plantilla_bom.xlsx")
-    data_lt, err_lead = descargar_plantilla("plantilla_lead_times.xlsx")
+    st.markdown("Descarga de manera directa los archivos modelo para estructurar tus datos:")
 
-    with col_temp1:
-        if data_forecast:
-            st.download_button(
-                label="📁 Descargar: Plantilla Forecast",
-                data=data_forecast,
-                file_name="plantilla_forecast.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        else:
-            st.error("Error plantilla Forecast")
-            if err_forecast:
-                st.caption(f"⚠️ {err_forecast}")
-            
-    with col_temp2:
-        if data_bom:
-            st.download_button(
-                label="📁 Descargar: Plantilla BOM",
-                data=data_bom,
-                file_name="plantilla_bom.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        else:
-            st.error("Error plantilla BOM")
-            if err_bom:
-                st.caption(f"⚠️ {err_bom}")
-            
-    with col_temp3:
-        if data_lt:
-            st.download_button(
-                label="📁 Descargar: Lead Times",
-                data=data_lt,
-                file_name="plantilla_lead_times.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        else:
-            st.error("Error plantilla Lead Times")
-            if err_lead:
-                st.caption(f"⚠️ {err_lead}")
+    # Definir la ruta de la carpeta assets de forma segura
+    assets_dir = "assets"
+
+    # Lista de tus archivos para evitar repetir código
+    archivos = {
+        "Plantilla Forecast": "plantilla_forecast.xlsx",
+        "Plantilla BOM": "plantilla_bom.xlsx",
+        "Plantilla Lead Times": "plantilla_lead_times.xlsx",
+    }
+
+    col_temp1, col_temp2, col_temp3 = st.columns(3)
+    columnas = [col_temp1, col_temp2, col_temp3]
+
+    for i, (label, nombre_archivo) in enumerate(archivos.items()):
+        ruta_completa = os.path.join(assets_dir, nombre_archivo)
+        with columnas[i]:
+            try:
+                if os.path.exists(ruta_completa):
+                    with open(ruta_completa, "rb") as f:
+                        bytes_data = f.read()
+                    st.download_button(
+                        label=f"📁 Descargar {label}",
+                        data=bytes_data,
+                        file_name=nombre_archivo,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                else:
+                    st.warning(f"⚠️ {nombre_archivo} no encontrado en la carpeta '{assets_dir}'")
+            except Exception as e:
+                st.error(f"Error al leer {nombre_archivo}: {str(e)}")
 
     st.markdown("---")
 
