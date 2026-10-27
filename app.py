@@ -279,8 +279,7 @@ def main():
 
             df_filtrado = final_df[final_df["Impacto Componente"].isin(filtro_impacto)].sort_values(by=["Material", "Var_Abs_Prod"], ascending=[True, False])
 
-            df_presentacion = df_filtrado.rename(columns={
-                "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
+            df_presentacion = df_filtrado.rename(columns={                "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
                 "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
                 "Var_Abs_Prod": "Variación Requerida (Abs)",
                 "Var_Abs_Total": "Variación Total Componente",
