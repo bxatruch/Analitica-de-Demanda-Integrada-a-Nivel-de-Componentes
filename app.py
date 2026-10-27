@@ -28,6 +28,23 @@ def main():
         st.session_state.uploader_key += 1
         st.rerun()
 
+    # --- SECCIÓN DE DESCARGA DE PLANTILLAS BASE --- 
+    st.markdown("### 📐 Descarga de Plantillas Base")
+    st.write("Si no tienes el formato de archivos requerido, puedes descargar las plantillas oficiales desde nuestro repositorio aquí:")
+    
+    # Enlaces de descarga directa del GitHub (carpeta assets)
+    repo_url_raw = "https://raw.githubusercontent.com/Fmeza94/mi-reto/main/assets"
+    
+    col_temp1, col_temp2, col_temp3 = st.columns(3)
+    with col_temp1:
+        st.markdown(f'''<a href="{repo_url_raw}/Forecast_Anterior.xlsx" target="_blank"><button style="width:100%; pading: 10px; background-color: #f0f2f6; border: 1px solid #dcdcdc; border-radius: 5px; cursor: pointer;">📁 Descargar Plantilla: Forecast Anterior</button></a>''', unsafe_allow_html=True)
+    with col_temp2:
+        st.markdown(f'''<a href="{repo_url_raw}/Forecast_Nuevo.xlsx" target="_blank"><button style="width:100%; pading: 10px; background-color: #f0f2f6; border: 1px solid #dcdcdc; border-radius: 5px; cursor: pointer;">📁 Descargar Plantilla: Forecast Nuevo</button></a>''', unsafe_allow_html=True)
+    with col_temp3:
+        st.markdown(f'''<a href="{repo_url_raw}/BOM_Excel.xlsx" target="_blank"><button style="width:100%; pading: 10px; background-color: #f0f2f6; border: 1px solid #dcdcdc; border-radius: 5px; cursor: pointer;">📁 Descargar Plantilla: BOM (Estructura)</button></a>''', unsafe_allow_html=True)
+
+    st.markdown("---")
+
     st.write("### 📂 Carga de Archivos de Planificación")
     use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts)", value=False)
 
