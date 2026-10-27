@@ -1,10 +1,4 @@
-# Instalar streamlit si no está en el entorno (necesario en Google Colab)
-try:
-    import streamlit as st
-except ImportError:
-    !pip install -q streamlit
-    import streamlit as st
-
+import streamlit as st
 import pandas as pd
 import numpy as np
 
@@ -25,7 +19,7 @@ def main():
 
     st.sidebar.markdown("---")
     st.sidebar.header("🎮 Control de Ejecución")
-    
+
     # Botón para reiniciar todo el análisis
     if st.sidebar.button("🔄 Resetear Aplicación", use_container_width=True):
         st.session_state.analizar = False
@@ -66,11 +60,11 @@ def main():
             df_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
-            
+
             # Convertir todas las columnas del forecast a strings para facilitar el comparativo dinámico
             df_fc_ant.columns = df_fc_ant.columns.astype(str)
             df_fc_nuevo.columns = df_fc_nuevo.columns.astype(str)
-            
+
             # Mostrar botón para iniciar análisis una vez subidos los archivos
             if st.button("🚀 Correr Análisis", type="primary", use_container_width=True):
                 st.session_state.analizar = True
