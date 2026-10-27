@@ -3,6 +3,23 @@ import pandas as pd
 import numpy as np
 import os
 
+# Importar biblioteca para Gemini de forma segura
+try:
+    import google.generativeai as genai
+except ImportError:
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "google-generativeai"])
+    import google.generativeai as genai
+
+def obtener_api_key_segura():
+    """Intenta obtener la API Key desde userdata de Colab, si falla usa el entorno o un input"""
+    try:
+        from google.colab import userdata
+        return userdata.get("GEMINI_API_KEY")
+    except Exception:
+        return os.environ.get("GEMINI_API_KEY", "")
+
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
 
@@ -14,11 +31,26 @@ def main():
         st.session_state.analizar = False
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
     # Panel lateral para configurar umbrales de alerta y controles de flujo
     st.sidebar.header("⚙️ Configuración de Alertas")
     umbral_subida = st.sidebar.slider("Umbral de Incremento Crítico (%)", min_value=10, max_value=200, value=30, step=5)
     umbral_bajada = st.sidebar.slider("Umbral de Disminución Crítica (%)", min_value=-200, max_value=-10, value=-30, step=5)
+
+    st.sidebar.markdown("---")
+    st.sidebar.header("🔑 Configuración de IA (Gemini)")
+    
+    # Obtener clave por defecto del sistema
+    default_key = obtener_api_key_segura()
+    
+    # Permitir sobreescribirla o mostrar confirmación de que ya se detectó
+    if default_key:
+        st.sidebar.success("✅ Gemini API Key detectada desde userdata")
+        gemini_key = default_key
+    else:
+        gemini_key = st.sidebar.text_input("Introduce tu Gemini API Key:", type="password", help="Consigue tu key en Google AI Studio")
 
     st.sidebar.markdown("---")
     st.sidebar.header("🎮 Control de Ejecución")
@@ -27,6 +59,7 @@ def main():
     if st.sidebar.button("🔄 Resetear Aplicación", use_container_width=True):
         st.session_state.analizar = False
         st.session_state.uploader_key += 1
+        st.session_state.chat_history = []
         st.rerun()
 
     # --- SECCIÓN DE DESCARGA DIRECTA DE PLANTILLAS BASE --- 
@@ -263,6 +296,66 @@ def main():
                 "Variación % Total Componente": "{:+,.1f}%",
                 "% Influencia en Variación": "{:+,.1f}%"
             }))
+
+            # --- SECCIÓN DE ASISTENTE DE INTELIGENCIA ARTIFICIAL (GEMINI) --- 
+            st.markdown("---")
+            st.write("### 🤖 Pregúntale a Gemini sobre este Análisis")
+            
+            if not gemini_key:
+                st.info("🔑 Ingresa tu Gemini API Key en el panel lateral para chatear con los resultados de esta planificación.")
+            else:
+                # Configurar clave del SDK
+                genai.configure(api_key=gemini_key)
+                
+                # Construir resumen textual del escenario como contexto enriquecido
+                alertas_rojas = df_presentacion[df_presentacion["Impacto del Componente"] == "🔴 Incremento Crítico"]["Material"].unique().tolist()[:10]
+                alertas_azules = df_presentacion[df_presentacion["Impacto del Componente"] == "🔵 Disminución Crítica"]["Material"].unique().tolist()[:10]
+                
+                contexto_ia = f"""Actúa como un experto consultor de Cadena de Suministro y Compras.
+" +                               f"Analizaste un cambio de Forecast de Demanda de Producto Terminado explosionado con su BOM.
+" +                               f"Resultados globales actuales:
+" +                               f"- Incrementos Críticos (Alerta Roja): {totales.get('🔴 Incremento Crítico', 0)} componentes.
+" +                               f"- Disminuciones Críticas (Alerta Azul): {totales.get('🔵 Disminución Crítica', 0)} componentes.
+" +                               f"- Componentes estables: {totales.get('🟢 Estable', 0)}.
+" +                               f"- Muestra de componentes con Incremento Crítico: {alertas_rojas}.
+" +                               f"- Muestra de componentes con Disminución Crítica: {alertas_azules}.
+
+" +                               f"Responde de forma concisa y con foco estratégico de compras a las dudas del planificador."""
+
+                # Mostrar historial de chat existente
+                for msg in st.session_state.chat_history:
+                    with st.chat_message(msg["role"]):
+                        st.write(msg["content"])
+
+                # Entrada del usuario para el chat
+                user_query = st.chat_input("Ej. ¿Qué acciones inmediatas sugieres para los materiales críticos con incrementos?")
+                
+                if user_query:
+                    # Agregar y mostrar consulta del usuario
+                    st.session_state.chat_history.append({"role": "user", "content": user_query})
+                    with st.chat_message("user"):
+                        st.write(user_query)
+                        
+                    with st.spinner("Pensando con Gemini..."):
+                        try:
+                            # Inicializar el modelo Gemini 2.5 Flash Lite
+                            model = genai.GenerativeModel("gemini-2.5-flash-lite")
+                            
+                            # Unir contexto e historial
+                            conversacion = [{"role": "user", "parts": [contexto_ia]}]
+                            for h in st.session_state.chat_history:
+                                role_mapped = "model" if h["role"] == "assistant" else "user"
+                                conversacion.append({"role": role_mapped, "parts": [h["content"]]})
+                            
+                            response = model.generate_content(conversacion)
+                            respuesta_texto = response.text
+                            
+                            # Guardar y mostrar respuesta de la IA
+                            st.session_state.chat_history.append({"role": "assistant", "content": respuesta_texto})
+                            with st.chat_message("assistant"):
+                                st.write(respuesta_texto)
+                        except Exception as chat_err:
+                            st.error(f"No se pudo obtener respuesta de Gemini: {chat_err}")
 
         except Exception as e:
             st.error(f"Ha ocurrido un error al procesar y explosionar los archivos de demanda con la BOM: {e}")
