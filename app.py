@@ -9,10 +9,14 @@ def descargar_plantilla(nombre_archivo):
     repo_url_raw = "https://raw.githubusercontent.com/Fmeza94/mi-reto/main/assets"
     url = f"{repo_url_raw}/{nombre_archivo}"
     try:
-        with urllib.request.urlopen(url) as response:
-            return response.read()
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        )
+        with urllib.request.urlopen(req) as response:
+            return response.read(), None
     except Exception as e:
-        return None
+        return None, f"Error al descargar de {url}: {str(e)}"
 
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
@@ -47,9 +51,9 @@ def main():
     col_temp1, col_temp2, col_temp3 = st.columns(3)
     
     # Descargar en memoria los bytes de cada archivo desde el repositorio usando los nuevos nombres
-    data_fc_ant = descargar_plantilla("plantilla_forecast.xlsx")
-    data_fc_nue = descargar_plantilla("plantilla_forecast.xlsx")
-    data_bom = descargar_plantilla("plantilla_bom.xlsx")
+    data_fc_ant, err_fc_ant = descargar_plantilla("plantilla_forecast.xlsx")
+    data_fc_nue, err_fc_nue = descargar_plantilla("plantilla_forecast.xlsx")
+    data_bom, err_bom = descargar_plantilla("plantilla_bom.xlsx")
 
     with col_temp1:
         if data_fc_ant:
@@ -61,7 +65,9 @@ def main():
                 use_container_width=True
             )
         else:
-            st.error("Error al cargar la plantilla Forecast Anterior")
+            st.error("Error plantilla Forecast Anterior")
+            if err_fc_ant:
+                st.caption(f"⚠️ {err_fc_ant}")
             
     with col_temp2:
         if data_fc_nue:
@@ -73,7 +79,9 @@ def main():
                 use_container_width=True
             )
         else:
-            st.error("Error al cargar la plantilla Forecast Nuevo")
+            st.error("Error plantilla Forecast Nuevo")
+            if err_fc_nue:
+                st.caption(f"⚠️ {err_fc_nue}")
             
     with col_temp3:
         if data_bom:
@@ -85,7 +93,9 @@ def main():
                 use_container_width=True
             )
         else:
-            st.error("Error al cargar la plantilla BOM")
+            st.error("Error plantilla BOM")
+            if err_bom:
+                st.caption(f"⚠️ {err_bom}")
 
     st.markdown("---")
 
