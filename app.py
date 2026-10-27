@@ -68,10 +68,10 @@ def main():
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            # Limpiar espacios en blanco en los nombres de las columnas
-            df_fc_ant.columns = df_fc_ant.columns.astype(str).str.strip()
-            df_fc_nuevo.columns = df_fc_nuevo.columns.astype(str).str.strip()
-            df_bom.columns = df_bom.columns.astype(str).str.strip()
+            # Convertir todas las columnas a string y limpiar espacios para evitar desfases de tipo
+            df_fc_ant.columns = [str(c).strip() for c in df_fc_ant.columns]
+            df_fc_nuevo.columns = [str(c).strip() for c in df_fc_nuevo.columns]
+            df_bom.columns = [str(c).strip() for c in df_bom.columns]
 
             # Mostrar botón para iniciar análisis una vez subidos los archivos
             if st.button("🚀 Correr Análisis", type="primary", use_container_width=True):
@@ -98,10 +98,11 @@ def main():
             df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM", col_prod_bom: "Producto"}, inplace=True)
 
             # 2. Identificación de Columnas Temporales (Meses) en los Forecasts de manera segura
-            palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+            # Agregamos formatos numéricos de fecha y abreviaciones comunes
+            palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "-", "/", "2024", "2025", "2026"]
 
-            col_meses_ant_detectados = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
-            col_meses_nue_detectados = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
+            col_meses_ant_detectados = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id"])]
+            col_meses_nue_detectados = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id"])]
 
             # Encontrar la intersección común de meses disponibles
             meses_comunes = sorted(list(set(col_meses_ant_detectados).intersection(set(col_meses_nue_detectados))))
@@ -120,10 +121,10 @@ def main():
                     st.warning("⚠️ Por favor, selecciona al menos un mes en la barra lateral para realizar los cálculos.")
                     return
 
-            col_prod_ant_candidates = [c for c in df_fc_ant.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo"])]
+            col_prod_ant_candidates = [c for c in df_fc_ant.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo", "desc", "código", "codigo"])]
             col_prod_ant = col_prod_ant_candidates[0] if col_prod_ant_candidates else df_fc_ant.columns[0]
 
-            col_prod_nue_candidates = [c for c in df_fc_nuevo.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo"])]
+            col_prod_nue_candidates = [c for c in df_fc_nuevo.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo", "desc", "código", "codigo"])]
             col_prod_nue = col_prod_nue_candidates[0] if col_prod_nue_candidates else df_fc_nuevo.columns[0]
 
             df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
@@ -135,7 +136,7 @@ def main():
                     df_fc_ant_clean[col] = pd.to_numeric(df_fc_ant_clean[col], errors="coerce").fillna(0)
                 df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_filtrados].sum(axis=1)
             else:
-                col_dem_ant_cand = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total"])]
+                col_dem_ant_cand = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total", "suma"])]
                 col_dem_ant = col_dem_ant_cand[0] if col_dem_ant_cand else df_fc_ant_clean.columns[1] if len(df_fc_ant_clean.columns) > 1 else df_fc_ant_clean.columns[0]
                 df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[col_dem_ant], errors="coerce").fillna(0)
 
@@ -144,7 +145,7 @@ def main():
                     df_fc_nuevo_clean[col] = pd.to_numeric(df_fc_nuevo_clean[col], errors="coerce").fillna(0)
                 df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_filtrados].sum(axis=1)
             else:
-                col_dem_nue_cand = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total"])]
+                col_dem_nue_cand = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total", "suma"])]
                 col_dem_nue = col_dem_nue_cand[0] if col_dem_nue_cand else df_fc_nuevo_clean.columns[1] if len(df_fc_nuevo_clean.columns) > 1 else df_fc_nuevo_clean.columns[0]
                 df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[col_dem_nue], errors="coerce").fillna(0)
 
