@@ -1,6 +1,18 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import urllib.request
+
+@st.cache_data
+def descargar_plantilla(nombre_archivo):
+    """Descarga la plantilla desde GitHub en segundo plano para ofrecerla localmente en Streamlit"""
+    repo_url_raw = "https://raw.githubusercontent.com/Fmeza94/mi-reto/main/assets"
+    url = f"{repo_url_raw}/{nombre_archivo}"
+    try:
+        with urllib.request.urlopen(url) as response:
+            return response.read()
+    except Exception as e:
+        return None
 
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
@@ -22,31 +34,63 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.header("🎮 Control de Ejecución")
 
-    # Botón para reiniciar todo el análisis y vaciar archivos cargados cambiando el uploader_key
+    # Botón para reiniciar todo el análisis y vaciar archivos cargados
     if st.sidebar.button("🔄 Resetear Aplicación", use_container_width=True):
         st.session_state.analizar = False
         st.session_state.uploader_key += 1
         st.rerun()
 
-    # --- SECCIÓN DE DESCARGA DE PLANTILLAS BASE --- 
+    # --- SECCIÓN DE DESCARGA DIRECTA DE PLANTILLAS BASE --- 
     st.markdown("### 📐 Descarga de Plantillas Base")
-    st.write("Si no tienes el formato de archivos requerido, puedes descargar las plantillas oficiales desde nuestro repositorio aquí:")
-    
-    # Enlaces de descarga directa del GitHub (carpeta assets)
-    repo_url_raw = "https://raw.githubusercontent.com/Fmeza94/mi-reto/main/assets"
+    st.write("Descarga de manera directa e interactiva los archivos de ejemplo para estructurar tus datos:")
     
     col_temp1, col_temp2, col_temp3 = st.columns(3)
+    
+    # Descargar en memoria los bytes de cada archivo
+    data_fc_ant = descargar_plantilla("Forecast_Anterior.xlsx")
+    data_fc_nue = descargar_plantilla("Forecast_Nuevo.xlsx")
+    data_bom = descargar_plantilla("BOM_Excel.xlsx")
+
     with col_temp1:
-        st.markdown(f'''<a href="{repo_url_raw}/Forecast_Anterior.xlsx" target="_blank"><button style="width:100%; pading: 10px; background-color: #f0f2f6; border: 1px solid #dcdcdc; border-radius: 5px; cursor: pointer;">📁 Descargar Plantilla: Forecast Anterior</button></a>''', unsafe_allow_html=True)
+        if data_fc_ant:
+            st.download_button(
+                label="📁 Descargar: Forecast Anterior",
+                data=data_fc_ant,
+                file_name="Forecast_Anterior.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        else:
+            st.error("Error al cargar la plantilla Forecast Anterior")
+            
     with col_temp2:
-        st.markdown(f'''<a href="{repo_url_raw}/Forecast_Nuevo.xlsx" target="_blank"><button style="width:100%; pading: 10px; background-color: #f0f2f6; border: 1px solid #dcdcdc; border-radius: 5px; cursor: pointer;">📁 Descargar Plantilla: Forecast Nuevo</button></a>''', unsafe_allow_html=True)
+        if data_fc_nue:
+            st.download_button(
+                label="📁 Descargar: Forecast Nuevo",
+                data=data_fc_nue,
+                file_name="Forecast_Nuevo.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        else:
+            st.error("Error al cargar la plantilla Forecast Nuevo")
+            
     with col_temp3:
-        st.markdown(f'''<a href="{repo_url_raw}/BOM_Excel.xlsx" target="_blank"><button style="width:100%; pading: 10px; background-color: #f0f2f6; border: 1px solid #dcdcdc; border-radius: 5px; cursor: pointer;">📁 Descargar Plantilla: BOM (Estructura)</button></a>''', unsafe_allow_html=True)
+        if data_bom:
+            st.download_button(
+                label="📁 Descargar: BOM (Estructura)",
+                data=data_bom,
+                file_name="BOM_Excel.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        else:
+            st.error("Error al cargar la plantilla BOM")
 
     st.markdown("---")
 
     st.write("### 📂 Carga de Archivos de Planificación")
-    use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts)", value=False)
+    use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts)", value=False) 
 
     if use_demo:
         df_fc_ant = pd.DataFrame({
@@ -76,9 +120,8 @@ def main():
         st.session_state.analizar = True
     else:
         col1, col2, col3 = st.columns(3)
-        # Usamos st.session_state.uploader_key para limpiar los inputs al resetear
         key_suffix = f"_reset_{st.session_state.uploader_key}"
-        with col1: 
+        with col1:
             file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv", "xlsx"], key=f"file_ant{key_suffix}")
         with col2:
             file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv", "xlsx"], key=f"file_nuevo{key_suffix}")
@@ -90,12 +133,10 @@ def main():
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            # Convertir todas las columnas a string y limpiar espacios para evitar desfases de tipo
             df_fc_ant.columns = [str(c).strip() for c in df_fc_ant.columns]
             df_fc_nuevo.columns = [str(c).strip() for c in df_fc_nuevo.columns]
             df_bom.columns = [str(c).strip() for c in df_bom.columns]
 
-            # Mostrar botón para iniciar análisis una vez subidos los archivos
             if st.button("🚀 Correr Análisis", type="primary", use_container_width=True):
                 st.session_state.analizar = True
         else:
@@ -103,10 +144,8 @@ def main():
             st.session_state.analizar = False
             return
 
-    # Procesamiento y Explosión de Materiales (se ejecuta solo si el botón de análisis fue pulsado)
     if st.session_state.analizar:
         try:
-            # 1. Estandarización Dinámica de la BOM de manera segura (evitando IndexError)
             col_material_candidates = [c for c in df_bom.columns if any(p in c.lower() for p in ["componente", "material", "part", "insumo"])]
             col_material = col_material_candidates[0] if col_material_candidates else df_bom.columns[1] if len(df_bom.columns) > 1 else df_bom.columns[0]
 
@@ -119,14 +158,11 @@ def main():
             df_bom_clean = df_bom.copy()
             df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM", col_prod_bom: "Producto"}, inplace=True)
 
-            # 2. Identificación de Columnas Temporales (Meses) en los Forecasts de manera segura
-            # Agregamos formatos numéricos de fecha y abreviaciones comunes
             palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "-", "/", "2024", "2025", "2026"]
 
             col_meses_ant_detectados = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id"])]
             col_meses_nue_detectados = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes) and not any(p in str(c).lower() for p in ["prod", "sku", "articulo", "artículo", "desc", "name", "nombre", "id"])]
 
-            # Encontrar la intersección común de meses disponibles
             meses_comunes = sorted(list(set(col_meses_ant_detectados).intersection(set(col_meses_nue_detectados))))
 
             col_meses_filtrados = meses_comunes
@@ -152,7 +188,6 @@ def main():
             df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
             df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
 
-            # Consolidar Demanda Anual o Mensual aplicando los filtros de meses activos
             if col_meses_filtrados:
                 for col in col_meses_filtrados:
                     df_fc_ant_clean[col] = pd.to_numeric(df_fc_ant_clean[col], errors="coerce").fillna(0)
@@ -171,11 +206,9 @@ def main():
                 col_dem_nue = col_dem_nue_cand[0] if col_dem_nue_cand else df_fc_nuevo_clean.columns[1] if len(df_fc_nuevo_clean.columns) > 1 else df_fc_nuevo_clean.columns[0]
                 df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[col_dem_nue], errors="coerce").fillna(0)
 
-            # --- EXPLOSIÓN DE DEMANDA ANTERIOR ---
             merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
             merged_ant["Demanda_Comp_Ant"] = merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]
 
-            # --- EXPLOSIÓN DE DEMANDA NUEVA ---
             merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
             merged_nuevo["Demanda_Comp_Nueva"] = merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]
 
@@ -183,14 +216,12 @@ def main():
                 st.error("⚠️ No se encontraron coincidencias de Productos entre tu archivo de BOM y los Forecasts. Por favor, verifica que los códigos de producto coincidan exactamente en ambos archivos.")
                 return
 
-            # 1. Agrupar por Componente y Producto Terminado para el detalle cruzado
             dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
             dtl_nuevo = merged_nuevo.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Nueva"].sum()
 
             merged_dtl = pd.merge(dtl_ant, dtl_nuevo, on=["Material", "Producto"], how="outer").fillna(0)
             merged_dtl["Var_Abs_Prod"] = merged_dtl["Demanda_Comp_Nueva"] - merged_dtl["Demanda_Comp_Ant"]
 
-            # 2. Calcular Totales Consolidados por Material
             tot_ant = merged_ant.groupby(["Material"], as_index=False)["Demanda_Comp_Ant"].sum()
             tot_nuevo = merged_nuevo.groupby(["Material"], as_index=False)["Demanda_Comp_Nueva"].sum()
 
@@ -199,17 +230,14 @@ def main():
             merged_tot["Variación % Total"] = (merged_tot["Var_Abs_Total"] / merged_tot["Demanda_Comp_Ant"]) * 100
             merged_tot["Variación % Total"] = merged_tot["Variación % Total"].replace([np.inf, -np.inf], np.nan).fillna(0)
 
-            # Unir totales de variación al DataFrame detallado
             final_df = pd.merge(merged_dtl, merged_tot[["Material", "Var_Abs_Total", "Variación % Total"]], on="Material")
 
-            # 3. Calcular % de Influencia en la variación del componente
             final_df["% Influencia en Variación"] = np.where(
                 final_df["Var_Abs_Total"] != 0,
                 (final_df["Var_Abs_Prod"] / final_df["Var_Abs_Total"]) * 100,
                 0.0
             )
 
-            # Categorización
             def categorizar(row):
                 var = row["Variación % Total"]
                 if var >= umbral_subida:
@@ -221,7 +249,6 @@ def main():
 
             final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
 
-            # Resumen de Métricas Consolidadas únicas
             st.write("### 📈 Resumen de Impacto Global de Componentes")
             totales_unicos = merged_tot.copy()
             totales_unicos["Impacto"] = totales_unicos.apply(lambda r: "🔴 Incremento Crítico" if r["Var_Abs_Total" ] > 0 and r["Variación % Total"] >= umbral_subida else ("🔵 Disminución Crítica" if r["Var_Abs_Total"] < 0 and r["Variación % Total"] <= umbral_bajada else "🟢 Estable"), axis=1)
@@ -232,7 +259,6 @@ def main():
             m2.metric("Disminuciones Críticas (Alerta Azul)", totales.get("🔵 Disminución Crítica", 0))
             m3.metric("Materiales Estables", totales.get("🟢 Estable", 0))
 
-            # Tabla Detallada
             st.write("### 🔍 Desglose de Componentes Explosionados y su Influencia por Producto")
 
             filtro_impacto = st.multiselect(
@@ -243,7 +269,6 @@ def main():
 
             df_filtrado = final_df[final_df["Impacto Componente"].isin(filtro_impacto)].sort_values(by=["Material", "Var_Abs_Prod"], ascending=[True, False])
 
-            # Renombrar columnas para claridad visual
             df_presentacion = df_filtrado.rename(columns={
                 "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
                 "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
