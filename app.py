@@ -32,19 +32,27 @@ def main():
         df_fc_ant = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
             "01-ene": [1000, 500, 300],
-            "01-feb": [1100, 400, 350]
+            "01-feb": [1100, 400, 350],
+            "01-mar": [1200, 450, 310],
+            "01-abr": [1300, 420, 320],
+            "01-may": [1400, 480, 330],
+            "01-jun": [1500, 410, 340]
         })
         df_fc_nuevo = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
             "01-ene": [1200, 300, 300],
-            "01-feb": [1500, 200, 400]
+            "01-feb": [1500, 200, 400],
+            "01-mar": [1100, 390, 320],
+            "01-abr": [1400, 460, 350],
+            "01-may": [1600, 510, 300],
+            "01-jun": [1700, 400, 310]
         })
         df_bom = pd.DataFrame({
             "Producto": ["Producto A", "Producto A", "Producto B", "Producto C"],
             "Componente": ["Componente A", "Componente B", "Componente A", "Componente C"],
             "Cantidad requerida": [5, 2, 3, 4]
         })
-        st.success("Cargados datos de demostración con estructura mensual.")
+        st.success("Cargados datos de demostración con estructura mensual extendida (Ene-Jun).")
         st.session_state.analizar = True
     else:
         col1, col2, col3 = st.columns(3)
@@ -92,8 +100,25 @@ def main():
             # 2. Identificación de Columnas Temporales (Meses) en los Forecasts de manera segura
             palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-            col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
-            col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
+            col_meses_ant_detectados = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
+            col_meses_nue_detectados = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
+
+            # Encontrar la intersección común de meses disponibles
+            meses_comunes = sorted(list(set(col_meses_ant_detectados).intersection(set(col_meses_nue_detectados))))
+
+            col_meses_filtrados = meses_comunes
+            if meses_comunes:
+                st.sidebar.markdown("---")
+                st.sidebar.header("📅 Selección Temporal")
+                col_meses_filtrados = st.sidebar.multiselect(
+                    "Meses/Bloques a evaluar:",
+                    options=meses_comunes,
+                    default=meses_comunes,
+                    help="Selecciona de forma dinámica el rango o bloques de meses que deseas incluir en el cálculo de demanda."
+                )
+                if not col_meses_filtrados:
+                    st.warning("⚠️ Por favor, selecciona al menos un mes en la barra lateral para realizar los cálculos.")
+                    return
 
             col_prod_ant_candidates = [c for c in df_fc_ant.columns if any(p in str(c).lower() for p in ["prod", "sku", "material", "articulo", "artículo"])]
             col_prod_ant = col_prod_ant_candidates[0] if col_prod_ant_candidates else df_fc_ant.columns[0]
@@ -104,20 +129,20 @@ def main():
             df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
             df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
 
-            # Consolidar Demanda Anual o Mensual sumando todas las columnas de meses encontradas
-            if col_meses_ant:
-                for col in col_meses_ant:
+            # Consolidar Demanda Anual o Mensual aplicando los filtros de meses activos
+            if col_meses_filtrados:
+                for col in col_meses_filtrados:
                     df_fc_ant_clean[col] = pd.to_numeric(df_fc_ant_clean[col], errors="coerce").fillna(0)
-                df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
+                df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_filtrados].sum(axis=1)
             else:
                 col_dem_ant_cand = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total"])]
                 col_dem_ant = col_dem_ant_cand[0] if col_dem_ant_cand else df_fc_ant_clean.columns[1] if len(df_fc_ant_clean.columns) > 1 else df_fc_ant_clean.columns[0]
                 df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[col_dem_ant], errors="coerce").fillna(0)
 
-            if col_meses_nue:
-                for col in col_meses_nue:
+            if col_meses_filtrados:
+                for col in col_meses_filtrados:
                     df_fc_nuevo_clean[col] = pd.to_numeric(df_fc_nuevo_clean[col], errors="coerce").fillna(0)
-                df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
+                df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_filtrados].sum(axis=1)
             else:
                 col_dem_nue_cand = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol", "total"])]
                 col_dem_nue = col_dem_nue_cand[0] if col_dem_nue_cand else df_fc_nuevo_clean.columns[1] if len(df_fc_nuevo_clean.columns) > 1 else df_fc_nuevo_clean.columns[0]
