@@ -23,7 +23,7 @@ def obtener_api_key_segura():
 def main():
     st.set_page_config(page_title="Explosión y Comparador de Demanda", layout="wide")
 
-    st.title("📊 Explosión y Comparador de Demandas con BOM")
+    st.title("📊 Analitica de Demanda Integrada a Nivel de Componentes")
     st.subheader("Sube tus Forecasts mensuales y tu BOM para analizar variaciones consolidadas")
 
     # Inicializar estados de la aplicación
@@ -217,7 +217,7 @@ def main():
                 col_dem_nue = col_dem_nue_cand[0] if col_dem_nue_cand else df_fc_nuevo_clean.columns[1] if len(df_fc_nuevo_clean.columns) > 1 else df_fc_nuevo_clean.columns[0]
                 df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[col_dem_nue], errors="coerce").fillna(0)
 
-            merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
+            merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"], on="Producto", how="inner")
             merged_ant["Demanda_Comp_Ant"] = merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]
 
             merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
