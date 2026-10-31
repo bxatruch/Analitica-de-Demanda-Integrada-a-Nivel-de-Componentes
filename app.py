@@ -725,7 +725,7 @@ def main():
         st.subheader("💬 Consulta Inteligente con Gemini AI")
         st.write("Realiza preguntas y solicita estrategias basadas en el resultado de la explosión y cálculo de variaciones:")
         
-        # Intentar leer llave API de los secretos de Streamlit o colab userdata
+        # Buscar llave API únicamente bajo el nombre 'GEMINI_API_KEY'
         gemini_api_key = ""
         if "GEMINI_API_KEY" in st.secrets:
             gemini_api_key = st.secrets["GEMINI_API_KEY"]
@@ -737,28 +737,23 @@ def main():
                 pass
 
         if not gemini_api_key:
-            st.warning("⚠️ No se encontró la clave de API 'GEMINI_API_KEY' en los secretos de configuración. Por favor agrégala para habilitar el asistente de chat.")
+            st.warning("⚠️ No se encontró la clave de API 'GEMINI_API_KEY' en los secretos de configuración o variables de entorno.")
         else:
-            # Configurar cliente genai
             try:
                 client = genai.Client(api_key=gemini_api_key)
                 
-                # Historial de chat en session_state
                 if "chat_history" not in st.session_state:
                     st.session_state["chat_history"] = []
 
-                # Mostrar historial previo
                 for chat in st.session_state["chat_history"]:
                     with st.chat_message(chat["role"]):
                         st.write(chat["text"])
 
-                # Prompt del usuario
                 if prompt := st.chat_input("¿Qué materiales de incremento crítico representan mayor riesgo financiero?"):
                     st.session_state["chat_history"].append({"role": "user", "text": prompt})
                     with st.chat_message("user"):
                         st.write(prompt)
                     
-                    # Crear contexto dinámico basado en los datos procesados
                     resumen_materiales = merged_tot.to_string(index=False)
                     
                     contexto_completo = (
