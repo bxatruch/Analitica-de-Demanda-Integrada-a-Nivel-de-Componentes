@@ -56,8 +56,8 @@ def main():
             df_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
-            
-            # Convertir todas las cabeceras de columnas a strings inmediatamente al cargar
+
+            # Convertir todas las cabeceras de columnas a strings inmediatamente al cargar para evitar errores de datetime u otros tipos
             df_fc_ant.columns = df_fc_ant.columns.map(str)
             df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
             df_bom.columns = df_bom.columns.map(str)
@@ -69,24 +69,24 @@ def main():
     try:
         # 1. Estandarización Dinámica de la BOM
         # Mapear 'Componente' -> 'Material'
-        col_material = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["material", "componente", "part_number"])][0]
-        col_cant_bom = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["cant", "qty", "factor", "requerida"])][0]
+        col_material = [c for c in df_bom.columns if any(p in c.lower() for p in ["material", "componente", "part_number"])][0]
+        col_cant_bom = [c for c in df_bom.columns if any(p in c.lower() for p in ["cant", "qty", "factor", "requerida"])][0]
 
         df_bom_clean = df_bom.copy()
         df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM"}, inplace=True)
 
         # Buscar columna Producto
-        col_prod_bom = [c for c in df_bom_clean.columns if "prod" in str(c).lower()][0]
+        col_prod_bom = [c for c in df_bom_clean.columns if "prod" in c.lower()][0]
         df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
 
         # 2. Identificación de Columnas Temporales (Meses) en los Forecasts
         palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-        col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
-        col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
+        col_meses_ant = [c for c in df_fc_ant.columns if any(m in c.lower() for m in palabras_mes)]
+        col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in c.lower() for m in palabras_mes)]
 
-        col_prod_ant = [c for c in df_fc_ant.columns if "prod" in str(c).lower()][0]
-        col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in str(c).lower()][0]
+        col_prod_ant = [c for c in df_fc_ant.columns if "prod" in c.lower()][0]
+        col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in c.lower()][0]
 
         df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
         df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
@@ -95,13 +95,13 @@ def main():
         if col_meses_ant:
             df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
         else:
-            col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
+            col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
             df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_dem_ant]
 
         if col_meses_nue:
             df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
         else:
-            col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
+            col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in c.lower() for p in ["demanda", "cant", "vol"])][0]
             df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_dem_nue]
 
         # --- EXPLOSIÓN DE DEMANDA ANTERIOR ---
@@ -124,7 +124,6 @@ def main():
         tot_nuevo = merged_nuevo.groupby(["Material"], as_index=False)["Demanda_Comp_Nueva"].sum()
 
         merged_tot = pd.merge(tot_ant, tot_nuevo, on="Material", how="outer").fillna(0)
-
         merged_tot["Var_Abs_Total"] = merged_tot["Demanda_Comp_Nueva"] - merged_tot["Demanda_Comp_Ant"]
         merged_tot["Variación % Total"] = (merged_tot["Var_Abs_Total"] / merged_tot["Demanda_Comp_Ant"]) * 100
         merged_tot["Variación % Total"] = merged_tot["Variación % Total"].replace([np.inf, -np.inf], np.nan).fillna(0)
@@ -160,7 +159,6 @@ def main():
         m1, m2, m3 = st.columns(3)
         m1.metric("Incrementos Críticos (Alerta Roja)", totales.get("🔴 Incremento Crítico", 0))
         m2.metric("Disminuciones Críticas (Alerta Azul)", totales.get("🔵 Disminución Crítica", 0))
-
         m3.metric("Materiales Estables", totales.get("🟢 Estable", 0))
 
         # Tabla Detallada
