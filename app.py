@@ -19,6 +19,7 @@ st.set_page_config(
 # ============================================================
 
 def normalizar_texto(texto):
+    # Normaliza encabezados para comparar nombres sin acentos.
     texto = str(texto).strip().lower()
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(
@@ -28,11 +29,13 @@ def normalizar_texto(texto):
     return texto
 
 def buscar_columna(df, palabras, descripcion):
+    # Busca una columna por palabras clave y devuelve su nombre original.
     for columna in df.columns:
         nombre = normalizar_texto(columna)
         if any(palabra in nombre for palabra in palabras):
             return columna
             
+    # Fallback inteligente: buscar columnas de tipo texto si es un producto/material
     columnas_texto = [c for c in df.columns if df[c].dtype == 'object' or isinstance(df[c].dtype, pd.StringDtype)]
     if "producto" in normalizar_texto(descripcion) or "material" in normalizar_texto(descripcion):
         if columnas_texto:
@@ -49,6 +52,7 @@ def buscar_columna(df, palabras, descripcion):
     )
 
 def leer_archivo(archivo):
+    # Lee archivos CSV o Excel.
     nombre = archivo.name.lower()
     if nombre.endswith(".csv"):
         return pd.read_csv(archivo)
@@ -60,6 +64,7 @@ def leer_archivo(archivo):
     )
 
 def es_columna_mes(columna):
+    # Identifica columnas mensuales.
     if isinstance(
         columna,
         (datetime.datetime, datetime.date, pd.Timestamp, np.datetime64)
@@ -81,6 +86,7 @@ def es_columna_mes(columna):
     return any(mes in texto for mes in palabras_mes)
 
 def obtener_demanda(df, nombre_demanda):
+    # Identifica las columnas mensuales o una columna de demanda total.
     df = df.copy()
     col_producto = buscar_columna(
         df,
@@ -117,6 +123,7 @@ def obtener_demanda(df, nombre_demanda):
     return df[["Producto", nombre_demanda]]
 
 def preparar_bom(df):
+    # Estandariza las columnas de la estructura BOM.
     df = df.copy()
     col_material = buscar_columna(
         df,
@@ -357,8 +364,7 @@ def main():
         )
 
         df_presentacion = df_filtrado.rename(
-            columns={
-                "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
+            columns={                "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
                 "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
                 "Var_Abs_Prod": "Variación Requerida (Abs)",
                 "Var_Abs_Total": "Variación Total Componente",
