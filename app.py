@@ -402,17 +402,10 @@ def main():
                     resumen_materiales = merged_tot.to_string(index=False)
 
                     # PRECONFIGURACIÓN DE GEMINI COMO EXPERTO EN CADENA DE SUMINISTRO
+                    instruccion_sc = "Actúas como un Consultor Senior y Experto en Planificación, Compras y Cadena de Suministro (Supply Chain & Operations Planner). Tus respuestas deben enfocarse en optimizar inventarios, mitigar riesgos financieros, balancear capacidades con proveedores, gestionar el impacto de variaciones críticas (alertas rojas/azules) y sugerir estrategias de aprovisionamiento de clase mundial."
                     contexto_completo = (
-                        "Actúas como un Consultor Senior y Experto en Planificación, Compras y Cadena de Suministro (Supply Chain & Operations Planner).
-
-"
-                        "Tus respuestas deben enfocarse en optimizar inventarios, mitigar riesgos financieros, balancear capacidades con proveedores, gestionar el impacto de variaciones críticas (alertas rojas/azules) y sugerir estrategias de aprovisionamiento de clase mundial (como Just-in-Time, stock de seguridad, buffers, o negociaciones de lead-time).
-
-"
-                        f"Aquí tienes el resultado numérico consolidado de la explosión de materiales y su variación de demanda:
-{resumen_materiales}
-
-"
+                        f"{instruccion_sc}\n\n"
+                        f"Aquí tienes el resultado numérico consolidado de la explosión de materiales y su variación de demanda:\n{resumen_materiales}\n\n"
                         f"Responde en español de forma concisa, analítica, profesional y accionable a la siguiente pregunta: {prompt}"
                     )
 
