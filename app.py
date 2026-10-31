@@ -1,19 +1,10 @@
 import datetime
 import re
 import unicodedata
-import urllib.request
 
 import numpy as np
 import pandas as pd
 import streamlit as st
-
-try:
-    from google import genai
-except ImportError:
-    import sys
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-genai"])
-    from google import genai
 
 # ============================================================
 # CONFIGURACIÓN
@@ -324,19 +315,6 @@ def categorizar(var, umbral_subida, umbral_bajada):
 
     return "🟢 Estable"
 
-# ============================================================
-# DESCARGA DE PLANTILLAS DESDE GITHUB
-# ============================================================
-
-def descargar_plantilla_github(nombre_archivo):
-    """Obtiene un archivo binario desde la carpeta assets del repositorio GitHub."""
-    repo_url = "https://raw.githubusercontent.com/tavof9/mi-reto/main/assets/"
-    url_completa = f"{repo_url}{nombre_archivo}"
-    try:
-        with urllib.request.urlopen(url_completa) as response:
-            return response.read()
-    except Exception:
-        return None
 
 # ============================================================
 # APLICACIÓN PRINCIPAL
@@ -352,7 +330,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # CONFIGURACIÓN DE ALERTAS Y DESCARGAS EN SIDEBAR
+    # CONFIGURACIÓN DE ALERTAS
     # --------------------------------------------------------
 
     st.sidebar.header("⚙️ Configuración de Alertas")
@@ -372,40 +350,6 @@ def main():
         value=-30,
         step=5
     )
-
-    st.sidebar.markdown("--- ")
-    st.sidebar.header("📥 Descargar Plantillas")
-    st.sidebar.write("Utiliza estos formatos oficiales de Excel para subir tus datos:")
-
-    # Descargar Plantilla Forecast
-    data_forecast = descargar_plantilla_github("plantilla_forecast.xlsx")
-    if data_forecast:
-        st.sidebar.download_button(
-            label="📄 Descargar Plantilla Forecast",
-            data=data_forecast,
-            file_name="plantilla_forecast.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-    # Descargar Plantilla BOM
-    data_bom = descargar_plantilla_github("plantilla_bom.xlsx")
-    if data_bom:
-        st.sidebar.download_button(
-            label="🛠️ Descargar Plantilla BOM",
-            data=data_bom,
-            file_name="plantilla_bom.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-    # Descargar Plantilla Lead Times
-    data_lead = descargar_plantilla_github("plantilla_lead_times.xlsx")
-    if data_lead:
-        st.sidebar.download_button(
-            label="⏱️ Descargar Plantilla Lead Times",
-            data=data_lead,
-            file_name="plantilla_lead_times.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
 
     st.write("### 📂 Carga de Archivos de Planificación")
 
@@ -488,7 +432,7 @@ def main():
             )
 
         if not (file_ant and file_nuevo and file_bom):
-            st.info("Por favor, sube los tres archivos requeridos en las secciones superiores.")
+            st.info("Por favor, sube los tres archivos requeridos.")
             return
 
         try:
@@ -608,7 +552,7 @@ def main():
         tot_ant = merged_ant.groupby(
             "Material",
             as_index=False
-        )["Demanda_Comp_Ant"].sum()
+            )["Demanda_Comp_Ant"].sum()
 
         tot_nuevo = merged_nuevo.groupby(
             "Material",
@@ -765,61 +709,6 @@ def main():
             }),
             use_container_width=True
         )
-
-        # ----------------------------------------------------
-        # CHAT BOX INTEGRADO CON GEMINI
-        # ----------------------------------------------------
-        st.markdown("--- ")
-        st.subheader("💬 Consulta Inteligente con Gemini AI")
-        st.write("Realiza preguntas y solicita estrategias basadas en el resultado de la explosión y cálculo de variaciones:")
-        
-        gemini_api_key = ""
-        if "GEMINI_API_KEY" in st.secrets:
-            gemini_api_key = st.secrets["GEMINI_API_KEY"]
-        else:
-            try:
-                from google.colab import userdata
-                gemini_api_key = userdata.get("GEMINI_API_KEY")
-            except Exception:
-                pass
-
-        if not gemini_api_key:
-            st.warning("⚠️ No se encontró la clave de API 'GEMINI_API_KEY' en los secretos de configuración. Por favor agrégala para habilitar el asistente de chat.")
-        else:
-            try:
-                client = genai.Client(api_key=gemini_api_key)
-                
-                if "chat_history" not in st.session_state:
-                    st.session_state["chat_history"] = []
-
-                for chat in st.session_state["chat_history"]:
-                    with st.chat_message(chat["role"]):
-                        st.write(chat["text"])
-
-                if prompt := st.chat_input("¿Qué materiales de incremento crítico representan mayor riesgo financiero?"):
-                    st.session_state["chat_history"].append({"role": "user", "text": prompt})
-                    with st.chat_message("user"):
-                        st.write(prompt)
-                    
-                    resumen_materiales = merged_tot.to_string(index=False)
-                    
-                    contexto_completo = (
-                        f"Actúas como un experto Planner de compras de producción.\n"
-                        f"Aquí tienes el resultado de la explosión de materiales y su variación de demanda:\n"
-                        f"{resumen_materiales}\n\n"
-                        f"Responde de forma concisa y profesional a la siguiente pregunta del usuario: {prompt}"
-                    )
-                    
-                    with st.chat_message("assistant"):
-                        with st.spinner("Pensando..."):
-                            response = client.models.generate_content(
-                                model='gemini-2.5-flash-lite',
-                                contents=contexto_completo,
-                            )
-                            st.write(response.text)
-                            st.session_state["chat_history"].append({"role": "assistant", "text": response.text})
-            except Exception as gem_error:
-                st.error(f"Error al conectar con la API de Gemini: {gem_error}")
 
     except Exception as e:
 
