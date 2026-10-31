@@ -725,10 +725,12 @@ def main():
         st.subheader("💬 Consulta Inteligente con Gemini AI")
         st.write("Realiza preguntas y solicita estrategias basadas en el resultado de la explosión y cálculo de variaciones:")
         
-        # Buscar llave API únicamente bajo el nombre 'GEMINI_API_KEY'
+     # Buscar llave API en secrets, variables de entorno o Colab
         gemini_api_key = ""
         if "GEMINI_API_KEY" in st.secrets:
             gemini_api_key = st.secrets["GEMINI_API_KEY"]
+        elif os.getenv("GEMINI_API_KEY"):
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
         else:
             try:
                 from google.colab import userdata
@@ -757,23 +759,23 @@ def main():
                     resumen_materiales = merged_tot.to_string(index=False)
                     
                     contexto_completo = (
-                        f"Actúas como un experto Planner de compras de producción.\n"
-                        f"Aquí tienes el resultado de la explosión de materiales y su variación de demanda:\n"
+                        "Actúas como un experto Planner de compras de producción.\n"
+                        "Aquí tienes el resultado de la explosión de materiales y su variación de demanda:\n"
                         f"{resumen_materiales}\n\n"
                         f"Responde de forma concisa y profesional a la siguiente pregunta del usuario: {prompt}"
                     )
                     
                     with st.chat_message("assistant"):
                         with st.spinner("Pensando..."):
+                            # CORREGIDO: Se usa un modelo oficial válido ("gemini-2.5-flash")
                             response = client.models.generate_content(
-                                model='gemini-3.5-flash-lite',
+                                model='gemini-2.5-flash',
                                 contents=contexto_completo,
                             )
                             st.write(response.text)
                             st.session_state["chat_history"].append({"role": "assistant", "text": response.text})
             except Exception as gem_error:
                 st.error(f"Error al conectar con la API de Gemini: {gem_error}")
-
     except Exception as e:
 
         st.error(
