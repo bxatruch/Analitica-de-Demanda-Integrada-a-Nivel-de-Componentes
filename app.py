@@ -23,7 +23,7 @@ st.set_page_config(
 # ============================================================
 
 def normalizar_texto(texto):
-    # Normaliza texto para comparar encabezados.
+    """Normaliza texto para comparar encabezados."""
     texto = str(texto).strip().lower()
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(
@@ -34,7 +34,11 @@ def normalizar_texto(texto):
 
 
 def buscar_columna(df, palabras, descripcion):
-    # Busca una columna por palabras clave.
+    """
+    Busca una columna por palabras clave.
+    Nunca devuelve una columna arbitraria si no encuentra coincidencias.
+    """
+
     if df is None or len(df.columns) == 0:
         raise ValueError(
             f"El archivo no contiene columnas para identificar "
@@ -58,7 +62,8 @@ def buscar_columna(df, palabras, descripcion):
 
 
 def leer_archivo(archivo):
-    # Lee archivos CSV o Excel.
+    """Lee archivos CSV o Excel."""
+
     nombre = archivo.name.lower()
 
     if nombre.endswith(".csv"):
@@ -85,7 +90,11 @@ MESES = [
 
 
 def es_columna_mes(columna):
-    # Detecta encabezados mensuales de Excel
+    """
+    Detecta encabezados mensuales de Excel, fechas reales,
+    textos como '01-ene' y formatos como '2026-01'.
+    """
+
     if isinstance(
         columna,
         (datetime.datetime, datetime.date, pd.Timestamp, np.datetime64)
@@ -97,12 +106,14 @@ def es_columna_mes(columna):
     if any(mes in texto for mes in MESES):
         return True
 
+    # Formatos numéricos como 2026-01, 2026/01 o 01/2026.
     if re.fullmatch(r"\d{4}[-/]\d{1,2}", texto):
         return True
 
     if re.fullmatch(r"\d{1,2}[-/]\d{4}", texto):
         return True
 
+    # Fechas como 01-01-2026 o 2026-01-01.
     if re.fullmatch(r"\d{1,2}[-/]\d{1,2}[-/]\d{2,4}", texto):
         return True
 
@@ -116,8 +127,9 @@ def es_columna_mes(columna):
 # PREPARACIÓN DE FORECASTS
 # ============================================================
 
-def obtener_demanda(df, nombre_demanda, meses_seleccionados=None):
-    # Consolida las columnas mensuales o utiliza una columna total.
+def obtener_demanda(df, nombre_demanda):
+    """Consolida las columnas mensuales o utiliza una columna total."""
+
     df = df.copy()
 
     if df.empty or len(df.columns) == 0:
@@ -135,11 +147,9 @@ def obtener_demanda(df, nombre_demanda, meses_seleccionados=None):
         if columna != col_producto and es_columna_mes(columna)
     ]
 
+    # Evitar que columnas de fechas o datos auxiliares se confundan
+    # con las columnas de demanda.
     if columnas_meses:
-        if meses_seleccionados is not None:
-            columnas_filtradas = [col for col in columnas_meses if col in meses_seleccionados]
-            if columnas_filtradas:
-                columnas_meses = columnas_filtradas
 
         valores = df[columnas_meses].apply(
             pd.to_numeric,
@@ -190,7 +200,8 @@ def obtener_demanda(df, nombre_demanda, meses_seleccionados=None):
 # ============================================================
 
 def preparar_bom(df):
-    # Estandariza las columnas de la estructura BOM.
+    """Estandariza las columnas de la estructura BOM."""
+
     df = df.copy()
 
     if df.empty or len(df.columns) == 0:
@@ -227,6 +238,7 @@ def preparar_bom(df):
         "Cantidad requerida"
     )
 
+    # Evitar que una misma columna se use para dos funciones.
     if len({
         col_producto,
         col_material,
@@ -271,6 +283,8 @@ def preparar_bom(df):
 # ============================================================
 
 def calcular_porcentaje_variacion(anterior, nuevo):
+    """Calcula variación porcentual evitando divisiones por cero."""
+
     anterior = pd.to_numeric(
         anterior,
         errors="coerce"
@@ -294,23 +308,45 @@ def calcular_porcentaje_variacion(anterior, nuevo):
 
 
 def categorizar(var, umbral_subida, umbral_bajada):
+
     if var >= umbral_subida:
         return "🔴 Incremento Crítico"
+
     if var <= umbral_bajada:
         return "🔵 Disminución Crítica"
+
     return "🟢 Estable"
 
+# ============================================================
+# DESCARGA DE PLANTILLAS DESDE GITHUB
+# ============================================================
+
+def descargar_plantilla_github(nombre_archivo):
+    """Obtiene un archivo binario desde la carpeta assets del repositorio GitHub."""
+    repo_url = "https://raw.githubusercontent.com/tavof9/mi-reto/main/assets/"
+    url_completa = f"{repo_url}{nombre_archivo}"
+    try:
+        with urllib.request.urlopen(url_completa) as response:
+            return response.read()
+    except Exception:
+        return None
 
 # ============================================================
 # APLICACIÓN PRINCIPAL
 # ============================================================
 
 def main():
+
     st.title("📊 Explosión y Comparador de Demandas con BOM")
+
     st.subheader(
         "Sube tus Forecasts mensuales y tu BOM "
         "para analizar variaciones consolidadas"
     )
+
+    # --------------------------------------------------------
+    # CONFIGURACIÓN DE ALERTAS Y DESCARGAS EN SIDEBAR
+    # --------------------------------------------------------
 
     st.sidebar.header("⚙️ Configuración de Alertas")
 
@@ -330,47 +366,39 @@ def main():
         step=5
     )
 
-    # Dropdown de selección de bloques/meses
-    st.sidebar.markdown("---")
-    st.sidebar.header("📅 Filtro de Bloques / Meses")
-    
-    meses_disponibles = [
-        "01-ene", "01-feb", "01-mar", "01-abr", "01-may", "01-jun",
-        "01-jul", "01-ago", "01-sep", "01-oct", "01-nov", "01-dic"
-    ]
-    
-    bloques_seleccionados = st.sidebar.multiselect(
-        "Selecciona los meses para el comparativo:",
-        options=meses_disponibles,
-        default=["01-ene", "01-feb"]
-    )
+    st.sidebar.markdown("--- ")
+    st.sidebar.header("📥 Descargar Plantillas")
+    st.sidebar.write("Utiliza estos formatos oficiales de Excel para subir tus datos:")
 
-    st.sidebar.markdown("---")
-    st.sidebar.header("📥 Descarga de Plantillas")
-    st.sidebar.write("Descarga los formatos para preparar tus datos:")
+    # Descargar Plantilla Forecast
+    data_forecast = descargar_plantilla_github("plantilla_forecast.xlsx")
+    if data_forecast:
+        st.sidebar.download_button(
+            label="📄 Descargar Plantilla Forecast",
+            data=data_forecast,
+            file_name="plantilla_forecast.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-    # URLs de las plantillas en GitHub
-    base_github_url = "https://raw.githubusercontent.com/tony-vargas/mi-reto/main/assets/"
-    
-    templates = {
-        "Plantilla BOM": "plantilla_bom.xlsx",
-        "Plantilla Forecast": "plantilla_forecast.xlsx",
-        "Plantilla Lead Time": "plantilla_lead_time.xlsx"
-    }
+    # Descargar Plantilla BOM
+    data_bom = descargar_plantilla_github("plantilla_bom.xlsx")
+    if data_bom:
+        st.sidebar.download_button(
+            label="🛠️ Descargar Plantilla BOM",
+            data=data_bom,
+            file_name="plantilla_bom.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-    for label, filename in templates.items():
-        try:
-            url = base_github_url + filename
-            with urllib.request.urlopen(url) as response:
-                file_data = response.read()
-            st.sidebar.download_button(
-                label=f"⬇️ {label}",
-                data=file_data,
-                file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        except Exception as e:
-            st.sidebar.warning(f"No se pudo cargar {filename}")
+    # Descargar Plantilla Lead Times
+    data_lead = descargar_plantilla_github("plantilla_lead_times.xlsx")
+    if data_lead:
+        st.sidebar.download_button(
+            label="⏱️ Descargar Plantilla Lead Times",
+            data=data_lead,
+            file_name="plantilla_lead_times.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
     st.write("### 📂 Carga de Archivos de Planificación")
 
@@ -379,7 +407,12 @@ def main():
         value=False
     )
 
+    # --------------------------------------------------------
+    # DATOS DE DEMOSTRACIÓN
+    # --------------------------------------------------------
+
     if use_demo:
+
         df_fc_ant = pd.DataFrame({
             "Producto": [
                 "Producto A",
@@ -415,22 +448,31 @@ def main():
             ],
             "Cantidad requerida": [5, 2, 3, 4]
         })
+
         st.success("Cargados datos de demostración.")
 
+    # --------------------------------------------------------
+    # CARGA DE ARCHIVOS
+    # --------------------------------------------------------
+
     else:
+
         col1, col2, col3 = st.columns(3)
+
         with col1:
             file_ant = st.file_uploader(
                 "1. Forecast Anterior (Prod. Terminado)",
                 type=["csv", "xlsx", "xls"],
                 key="forecast_anterior"
             )
+
         with col2:
             file_nuevo = st.file_uploader(
                 "2. Forecast Nuevo (Prod. Terminado)",
                 type=["csv", "xlsx", "xls"],
                 key="forecast_nuevo"
             )
+
         with col3:
             file_bom = st.file_uploader(
                 "3. Estructura BOM (Componentes)",
@@ -439,32 +481,43 @@ def main():
             )
 
         if not (file_ant and file_nuevo and file_bom):
-            st.info("Por favor, sube los tres archivos requeridos o descarga las plantillas de la barra lateral.")
+            st.info("Por favor, sube los tres archivos requeridos en las secciones superiores.")
             return
 
         try:
+
             df_fc_ant = leer_archivo(file_ant)
             df_fc_nuevo = leer_archivo(file_nuevo)
             df_bom = leer_archivo(file_bom)
+
             st.success("¡Archivos cargados con éxito!")
+
         except Exception as e:
+
             st.error(f"Error al leer los archivos: {e}")
             return
 
+    # --------------------------------------------------------
+    # PROCESAMIENTO
+    # --------------------------------------------------------
+
     try:
+
         df_bom_clean = preparar_bom(df_bom)
 
         df_fc_ant_clean = obtener_demanda(
             df_fc_ant,
-            "Demanda_Ant",
-            meses_seleccionados=bloques_seleccionados
+            "Demanda_Ant"
         )
 
         df_fc_nuevo_clean = obtener_demanda(
             df_fc_nuevo,
-            "Demanda_Nueva",
-            meses_seleccionados=bloques_seleccionados
+            "Demanda_Nueva"
         )
+
+        # ----------------------------------------------------
+        # EXPLOSIÓN DE DEMANDA ANTERIOR
+        # ----------------------------------------------------
 
         merged_ant = pd.merge(
             df_bom_clean,
@@ -477,6 +530,10 @@ def main():
             merged_ant["Demanda_Ant"]
             * merged_ant["Cantidad_BOM"]
         )
+
+        # ----------------------------------------------------
+        # EXPLOSIÓN DE DEMANDA NUEVA
+        # ----------------------------------------------------
 
         merged_nuevo = pd.merge(
             df_bom_clean,
@@ -491,11 +548,29 @@ def main():
         )
 
         if merged_ant.empty and merged_nuevo.empty:
+
             st.warning(
                 "No se encontraron coincidencias entre los productos "
-                "de los Forecasts y los productos de la BOM."
+                "de los Forecasts y los productos de la BOM. "
+                "Verifica que los códigos de producto sean iguales."
             )
+
+            with st.expander("Ver productos encontrados"):
+
+                st.write("Productos del Forecast anterior:")
+                st.dataframe(df_fc_ant_clean[["Producto"]])
+
+                st.write("Productos del Forecast nuevo:")
+                st.dataframe(df_fc_nuevo_clean[["Producto"]])
+
+                st.write("Productos de la BOM:")
+                st.dataframe(df_bom_clean[["Producto"]])
+
             return
+
+        # ----------------------------------------------------
+        # DETALLE POR MATERIAL Y PRODUCTO
+        # ----------------------------------------------------
 
         dtl_ant = merged_ant.groupby(
             ["Material", "Producto"],
@@ -518,6 +593,10 @@ def main():
             merged_dtl["Demanda_Comp_Nueva"]
             - merged_dtl["Demanda_Comp_Ant"]
         )
+
+        # ----------------------------------------------------
+        # TOTALES CONSOLIDADOS POR MATERIAL
+        # ----------------------------------------------------
 
         tot_ant = merged_ant.groupby(
             "Material",
@@ -548,6 +627,10 @@ def main():
             )
         )
 
+        # ----------------------------------------------------
+        # UNIR DETALLE Y TOTALES
+        # ----------------------------------------------------
+
         final_df = pd.merge(
             merged_dtl,
             merged_tot[
@@ -561,6 +644,10 @@ def main():
             how="left"
         )
 
+        # ----------------------------------------------------
+        # PORCENTAJE DE INFLUENCIA
+        # ----------------------------------------------------
+
         final_df["% Influencia en Variación"] = np.where(
             final_df["Var_Abs_Total"] != 0,
             (
@@ -569,6 +656,10 @@ def main():
             ) * 100,
             0.0
         )
+
+        # ----------------------------------------------------
+        # CATEGORIZACIÓN
+        # ----------------------------------------------------
 
         final_df["Impacto Componente"] = (
             final_df["Variación % Total"].apply(
@@ -579,6 +670,10 @@ def main():
                 )
             )
         )
+
+        # ----------------------------------------------------
+        # RESUMEN GLOBAL
+        # ----------------------------------------------------
 
         st.write("### 📈 Resumen de Impacto Global de Componentes")
 
@@ -595,18 +690,25 @@ def main():
         totales = merged_tot["Impacto"].value_counts()
 
         m1, m2, m3 = st.columns(3)
+
         m1.metric(
             "Incrementos Críticos (Alerta Roja)",
             totales.get("🔴 Incremento Crítico", 0)
         )
+
         m2.metric(
             "Disminuciones Críticas (Alerta Azul)",
             totales.get("🔵 Disminución Crítica", 0)
         )
+
         m3.metric(
             "Materiales Estables",
             totales.get("🟢 Estable", 0)
         )
+
+        # ----------------------------------------------------
+        # TABLA DETALLADA
+        # ----------------------------------------------------
 
         st.write(
             "### 🔍 Desglose de Componentes Explosionados "
@@ -658,9 +760,19 @@ def main():
         )
 
     except Exception as e:
+
         st.error(
             f"Ha ocurrido un error al procesar los archivos: {e}"
         )
+
+        with st.expander("Detalles técnicos del error"):
+
+            import traceback
+
+            st.code(
+                traceback.format_exc(),
+                language="text"
+            )
 
 
 if __name__ == "__main__":
