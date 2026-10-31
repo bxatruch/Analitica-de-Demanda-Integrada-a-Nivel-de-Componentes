@@ -38,7 +38,6 @@ def main():
             "Componente": ["Componente A", "Componente B", "Componente A", "Componente C"],
             "Cantidad requerida": [5, 2, 3, 4]
         })
-        # Asegurar conversión de columnas a string incluso en el demo
         df_fc_ant.columns = df_fc_ant.columns.map(str)
         df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
         df_bom.columns = df_bom.columns.map(str)
@@ -57,7 +56,7 @@ def main():
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            # Convertir todas las cabeceras de columnas a strings inmediatamente al cargar para evitar errores de datetime u otros tipos
+            # Convertir todas las cabeceras de columnas a strings inmediatamente al cargar
             df_fc_ant.columns = df_fc_ant.columns.map(str)
             df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
             df_bom.columns = df_bom.columns.map(str)
