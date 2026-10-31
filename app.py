@@ -56,7 +56,7 @@ def main():
             df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
             df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            # Convertir todas las cabeceras de columnas a strings inmediatamente al cargar
+            # Forzar la conversión de todas las cabeceras a string para mitigar tipos datetime/numéricos
             df_fc_ant.columns = df_fc_ant.columns.map(str)
             df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
             df_bom.columns = df_bom.columns.map(str)
@@ -66,8 +66,7 @@ def main():
 
     # Procesamiento y Explosión de Materiales
     try:
-        # 1. Estandarización Dinámica de la BOM
-        # Mapear 'Componente' -> 'Material'
+        # 1. Estandarización Dinámica de la BOM usando str(c).lower()
         col_material = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["material", "componente", "part_number"])][0]
         col_cant_bom = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["cant", "qty", "factor", "requerida"])][0]
 
