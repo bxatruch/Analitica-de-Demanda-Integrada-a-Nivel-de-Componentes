@@ -60,18 +60,18 @@ def main():
             raw_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
             st.info("Archivos cargados con éxito. Presiona el botón de abajo para forzar la conversión a texto plano y procesar.")
-            
+
             if st.button("⚙️ Convertir a Texto Plano y Procesar", type="primary"):
                 # Convertir explícitamente cada nombre de columna a String y quitar espacios en blanco
                 df_fc_ant = raw_fc_ant.copy()
                 df_fc_ant.columns = df_fc_ant.columns.map(lambda x: str(x).strip())
-                
+
                 df_fc_nuevo = raw_fc_nuevo.copy()
                 df_fc_nuevo.columns = df_fc_nuevo.columns.map(lambda x: str(x).strip())
-                
+
                 df_bom = raw_bom.copy()
                 df_bom.columns = df_bom.columns.map(lambda x: str(x).strip())
-                
+
                 st.success("¡Conversión a texto plano realizada con éxito!")
         else:
             st.warning("Por favor sube los tres ficheros requeridos para proceder.")
@@ -163,7 +163,7 @@ def main():
                 else:
                     return "🟢 Estable"
 
-            final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
+            final_df["Impacto Componente" ] = final_df.apply(categorizar, axis=1)
 
             # Resumen de Métricas Consolidadas únicas
             st.write("### 📈 Resumen de Impacto Global de Componentes")
