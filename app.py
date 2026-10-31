@@ -40,10 +40,6 @@ def main():
             "Componente": ["Componente A", "Componente B", "Componente A", "Componente C"],
             "Cantidad requerida": [5, 2, 3, 4]
         })
-        # Sanitizar inmediato para la demostración
-        df_fc_ant.columns = df_fc_ant.columns.map(str)
-        df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
-        df_bom.columns = df_bom.columns.map(str)
         st.success("Cargados datos de demostración de forma segura.")
     else:
         col1, col2, col3 = st.columns(3)
@@ -55,29 +51,16 @@ def main():
             file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv", "xlsx"])
 
         if file_ant and file_nuevo and file_bom:
-            raw_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
-            raw_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
-            raw_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
+            df_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
+            df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
+            df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            st.info("Archivos cargados con éxito. Presiona el botón de abajo para forzar la conversión a texto plano y procesar.")
-
-            if st.button("⚙️ Convertir a Texto Plano y Procesar", type="primary"):
-                # Convertir explícitamente cada nombre de columna a String y quitar espacios en blanco
-                df_fc_ant = raw_fc_ant.copy()
-                df_fc_ant.columns = df_fc_ant.columns.map(lambda x: str(x).strip())
-
-                df_fc_nuevo = raw_fc_nuevo.copy()
-                df_fc_nuevo.columns = df_fc_nuevo.columns.map(lambda x: str(x).strip())
-
-                df_bom = raw_bom.copy()
-                df_bom.columns = df_bom.columns.map(lambda x: str(x).strip())
-
-                st.success("¡Conversión a texto plano realizada con éxito!")
+            st.success("¡Archivos cargados con éxito!")
         else:
             st.warning("Por favor sube los tres ficheros requeridos para proceder.")
             return
 
-    # Si la sanitización de dataframes ha ocurrido con éxito
+    # Si los dataframes están disponibles
     if df_fc_ant is not None and df_fc_nuevo is not None and df_bom is not None:
         try:
             # 1. Estandarización Dinámica de la BOM usando str(c).lower()
@@ -94,6 +77,7 @@ def main():
             # 2. Identificación de Columnas Temporales (Meses) en los Forecasts
             palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
+            # Se analiza convirtiendo temporalmente a string para la búsqueda sin alterar el tipo nativo de la columna
             col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
             col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
 
@@ -163,12 +147,12 @@ def main():
                 else:
                     return "🟢 Estable"
 
-            final_df["Impacto Componente" ] = final_df.apply(categorizar, axis=1)
+            final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
 
             # Resumen de Métricas Consolidadas únicas
             st.write("### 📈 Resumen de Impacto Global de Componentes")
             totales_unicos = merged_tot.copy()
-            totales_unicos["Impacto"] = totales_unicos.apply(lambda r: "🔴 Incremento Crítico" if r["Var_Abs_Total" ] > 0 and r["Variación % Total"] >= umbral_subida else ("🔵 Disminución Crítica" if r["Var_Abs_Total"] < 0 and r["Variación % Total"] <= umbral_bajada else "🟢 Estable"), axis=1)
+            totales_unicos["Impacto"] = totales_unicos.apply(lambda r: "🔴 Incremento Crítico" if r["Var_Abs_Total"] > 0 and r["Variación % Total"] >= umbral_subida else ("🔵 Disminución Crítica" if r["Var_Abs_Total"] < 0 and r["Variación % Total"] <= umbral_bajada else "🟢 Estable"), axis=1)
 
             totales = totales_unicos["Impacto"].value_counts()
             m1, m2, m3 = st.columns(3)
