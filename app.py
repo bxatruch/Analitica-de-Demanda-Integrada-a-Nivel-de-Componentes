@@ -767,9 +767,9 @@ def main():
                     
                     with st.chat_message("assistant"):
                         with st.spinner("Pensando..."):
-                            # CORREGIDO: Se usa un modelo oficial válido ("gemini-2.5-flash")
+                            # CORREGIDO: Se usa un modelo oficial válido ("gemini-3.5-flash")
                             response = client.models.generate_content(
-                                model='gemini-2.5-flash',
+                                model='gemini-3.5-flash',
                                 contents=contexto_completo,
                             )
                             st.write(response.text)
