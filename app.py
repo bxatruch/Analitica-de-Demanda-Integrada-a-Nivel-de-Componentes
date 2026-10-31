@@ -14,11 +14,10 @@ st.set_page_config(
 )
 
 # ============================================================
-# FUNCIONES AUXILIARES
+# FUNCIONES AUXILIARES OPTIMIZADAS
 # ============================================================
 
 def normalizar_texto(texto):
-    # Normaliza encabezados para comparar nombres sin acentos.
     texto = str(texto).strip().lower()
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(
@@ -28,18 +27,27 @@ def normalizar_texto(texto):
     return texto
 
 def buscar_columna(df, palabras, descripcion):
-    # Busca una columna por palabras clave y devuelve su nombre original.
     for columna in df.columns:
         nombre = normalizar_texto(columna)
         if any(palabra in nombre for palabra in palabras):
             return columna
+            
+    columnas_texto = [c for c in df.columns if df[c].dtype == 'object' or isinstance(df[c].dtype, pd.StringDtype)]
+    if "producto" in normalizar_texto(descripcion) or "material" in normalizar_texto(descripcion):
+        if columnas_texto:
+            if "material" in normalizar_texto(descripcion) and len(columnas_texto) > 1:
+                return columnas_texto[1]
+            return columnas_texto[0]
+            
+    if len(df.columns) > 0:
+        return df.columns[0]
+        
     raise ValueError(
         f"No se encontró la columna '{descripcion}'. "
         f"Columnas disponibles: {list(df.columns)}"
     )
 
 def leer_archivo(archivo):
-    # Lee archivos CSV o Excel.
     nombre = archivo.name.lower()
     if nombre.endswith(".csv"):
         return pd.read_csv(archivo)
@@ -51,7 +59,6 @@ def leer_archivo(archivo):
     )
 
 def es_columna_mes(columna):
-    # Identifica columnas mensuales tanto si el encabezado es una fecha real de Excel como si es texto, por ejemplo '01-ene' o 'enero'.
     if isinstance(
         columna,
         (datetime.datetime, datetime.date, pd.Timestamp, np.datetime64)
@@ -66,7 +73,6 @@ def es_columna_mes(columna):
         "jul", "aug", "sep", "oct", "nov", "dec"
     ]
 
-    # También reconoce encabezados como 2026-01 o 01/2026.
     fecha = pd.to_datetime(texto, errors="coerce")
     if not pd.isna(fecha):
         return True
@@ -74,11 +80,10 @@ def es_columna_mes(columna):
     return any(mes in texto for mes in palabras_mes)
 
 def obtener_demanda(df, nombre_demanda):
-    # Identifica las columnas mensuales o una columna de demanda total. Devuelve una copia del DataFrame con Producto y la demanda calculada.
     df = df.copy()
     col_producto = buscar_columna(
         df,
-        ["producto", "prod"],
+        ["producto", "prod", "item", "codigo", "desc"],
         "Producto"
     )
     df.rename(
@@ -86,24 +91,21 @@ def obtener_demanda(df, nombre_demanda):
         inplace=True
     )
 
-    # Identificar los meses sin modificar los nombres originales.
     columnas_meses = [
         columna for columna in df.columns
-        if es_columna_mes(columna)
+        if es_columna_mes(columna) and columna != col_producto
     ]
 
     if columnas_meses:
-        # Convertir los valores mensuales a números.
         valores = df[columnas_meses].apply(
             pd.to_numeric,
             errors="coerce"
         ).fillna(0)
         df[nombre_demanda] = valores.sum(axis=1)
     else:
-        # Si no hay columnas mensuales, buscar una columna de demanda total.
         columna_demanda = buscar_columna(
             df,
-            ["demanda", "cantidad", "cant", "volumen", "vol"],
+            ["demanda", "cantidad", "cant", "volumen", "vol", "total", "qty"],
             "Demanda o Cantidad"
         )
         df[nombre_demanda] = pd.to_numeric(
@@ -114,21 +116,20 @@ def obtener_demanda(df, nombre_demanda):
     return df[["Producto", nombre_demanda]]
 
 def preparar_bom(df):
-    # Estandariza las columnas de la estructura BOM.
     df = df.copy()
     col_material = buscar_columna(
         df,
-        ["material", "componente", "part_number", "part number"],
+        ["material", "componente", "part_number", "part number", "comp"],
         "Material o Componente"
     )
     col_producto = buscar_columna(
         df,
-        ["producto", "prod"],
+        ["producto", "prod", "parent", "padre", "item"],
         "Producto"
     )
     col_cantidad = buscar_columna(
         df,
-        ["cantidad requerida", "cantidad", "cant", "qty", "factor"],
+        ["cantidad requerida", "cantidad", "cant", "qty", "factor", "uso"],
         "Cantidad requerida"
     )
     df.rename(
@@ -145,7 +146,6 @@ def preparar_bom(df):
         errors="coerce"
     ).fillna(0)
 
-    # Limpiar los identificadores para evitar diferencias por espacios.
     for columna in ["Material", "Producto"]:
         df[columna] = df[columna].astype("string").str.strip()
 
@@ -153,7 +153,6 @@ def preparar_bom(df):
     return df
 
 def calcular_porcentaje_variacion(anterior, nuevo):
-    # Calcula variación porcentual evitando divisiones por cero.
     anterior = pd.to_numeric(anterior, errors="coerce").fillna(0)
     nuevo = pd.to_numeric(nuevo, errors="coerce").fillna(0)
     variacion = nuevo - anterior
@@ -176,7 +175,6 @@ def main():
     st.title("📊 Explosión y Comparador de Demandas con BOM")
     st.subheader("Sube tus Forecasts mensuales y tu BOM para analizar variaciones consolidadas")
 
-    # Panel lateral para configurar umbrales de alerta
     st.sidebar.header("⚙️ Configuración de Alertas")
     umbral_subida = st.sidebar.slider(
         "Umbral de Incremento Crítico (%)",
@@ -235,16 +233,11 @@ def main():
             st.error(f"Error al leer los archivos: {e}")
             return
 
-    # Procesamiento y Explosión
     try:
-        # 1. Estandarizar la BOM.
         df_bom_clean = preparar_bom(df_bom)
-
-        # 2. Identificar y consolidar la demanda de los Forecasts.
         df_fc_ant_clean = obtener_demanda(df_fc_ant, "Demanda_Ant")
         df_fc_nuevo_clean = obtener_demanda(df_fc_nuevo, "Demanda_Nueva")
 
-        # 3. Explosión de demanda anterior.
         merged_ant = pd.merge(
             df_bom_clean,
             df_fc_ant_clean,
@@ -256,7 +249,6 @@ def main():
             * merged_ant["Cantidad_BOM"]
         )
 
-        # 4. Explosión de demanda nueva.
         merged_nuevo = pd.merge(
             df_bom_clean,
             df_fc_nuevo_clean,
@@ -275,7 +267,6 @@ def main():
             )
             return
 
-        # Detalle por material y producto
         dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
         dtl_nuevo = merged_nuevo.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Nueva"].sum()
 
@@ -290,7 +281,6 @@ def main():
             - merged_dtl["Demanda_Comp_Ant"]
         )
 
-        # Totales consolidados por material
         tot_ant = merged_ant.groupby("Material", as_index=False)["Demanda_Comp_Ant"].sum()
         tot_nuevo = merged_nuevo.groupby("Material", as_index=False)["Demanda_Comp_Nueva"].sum()
 
@@ -309,7 +299,6 @@ def main():
             merged_tot["Demanda_Comp_Nueva"]
         )
 
-        # Unir detalle y totales
         final_df = pd.merge(
             merged_dtl,
             merged_tot[["Material", "Var_Abs_Total", "Variación % Total"]],
@@ -317,14 +306,12 @@ def main():
             how="left"
         )
 
-        # Porcentaje de influencia
         final_df["% Influencia en Variación"] = np.where(
             final_df["Var_Abs_Total"] != 0,
             (final_df["Var_Abs_Prod"] / final_df["Var_Abs_Total"]) * 100,
             0.0
         )
 
-        # Categorización
         def categorizar(row):
             var = row["Variación % Total"]
             if var >= umbral_subida:
@@ -335,7 +322,6 @@ def main():
 
         final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
 
-        # Resumen de impacto global
         st.write("### 📈 Resumen de Impacto Global de Componentes")
         totales_unicos = merged_tot.copy()
         totales_unicos["Impacto"] = totales_unicos.apply(
@@ -357,7 +343,6 @@ def main():
         m2.metric("Disminuciones Críticas (Alerta Azul)", totales.get("🔵 Disminución Crítica", 0))
         m3.metric("Materiales Estables", totales.get("🟢 Estable", 0))
 
-        # Tabla detallada
         st.write("### 🔍 Desglose de Componentes Explosionados y su Influencia por Producto")
         filtro_impacto = st.multiselect(
             "Filtrar por categoría de Impacto:",
@@ -371,7 +356,7 @@ def main():
         )
 
         df_presentacion = df_filtrado.rename(
-            columns={ 
+            columns={
                 "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
                 "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
                 "Var_Abs_Prod": "Variación Requerida (Abs)",
