@@ -188,10 +188,10 @@ def main():
     # --- SECCIÓN DE DESCARGA DE TEMPLATES DE ANÁLISIS ---
     st.markdown("### 📥 Descargar Plantillas de Referencia")
     d_col1, d_col2 = st.columns(2)
-    
+
     path_bom = os.path.join("assets", "plantilla_bom.xlsx")
     path_forecast = os.path.join("assets", "plantilla_forecast.xlsx")
-    
+
     with d_col1:
         if os.path.exists(path_bom):
             with open(path_bom, "rb") as file:
@@ -203,7 +203,7 @@ def main():
                 )
         else:
             st.info("ℹ️ Plantilla BOM no disponible en la carpeta de assets.")
-            
+
     with d_col2:
         if os.path.exists(path_forecast):
             with open(path_forecast, "rb") as file:
@@ -403,14 +403,14 @@ def main():
 
                     # PRECONFIGURACIÓN DE GEMINI COMO EXPERTO EN CADENA DE SUMINISTRO
                     contexto_completo = (
-                        f"Actúas como un Consultor Senior y Experto en Planificación, Compras y Cadena de Suministro (Supply Chain & Operations Planner).
+                        "Actúas como un Consultor Senior y Experto en Planificación, Compras y Cadena de Suministro (Supply Chain & Operations Planner).
+
 "
-                        f"Tus respuestas deben enfocarse en optimizar inventarios, mitigar riesgos financieros, balancear capacidades con proveedores, gestionar el impacto de variaciones críticas (alertas rojas/azules) y sugerir estrategias de aprovisionamiento de clase mundial (como Just-in-Time, stock de seguridad, buffers, o negociaciones de lead-time).
+                        "Tus respuestas deben enfocarse en optimizar inventarios, mitigar riesgos financieros, balancear capacidades con proveedores, gestionar el impacto de variaciones críticas (alertas rojas/azules) y sugerir estrategias de aprovisionamiento de clase mundial (como Just-in-Time, stock de seguridad, buffers, o negociaciones de lead-time).
 
 "
                         f"Aquí tienes el resultado numérico consolidado de la explosión de materiales y su variación de demanda:
-"
-                        f"{resumen_materiales}
+{resumen_materiales}
 
 "
                         f"Responde en español de forma concisa, analítica, profesional y accionable a la siguiente pregunta: {prompt}"
@@ -418,7 +418,7 @@ def main():
 
                     with st.chat_message("assistant"):
                         with st.spinner("Pensando..."):
-                            response = client.models.generate_content( 
+                            response = client.models.generate_content(
                                 model='gemini-3.8-flash',
                                 contents=contexto_completo,
                             )
