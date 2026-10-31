@@ -55,7 +55,7 @@ def leer_archivo(archivo):
     nombre = archivo.name.lower()
     if nombre.endswith(".csv"):
         return pd.read_csv(archivo)
-    if nombre.endswith(Tuple := (".xlsx", ".xls")):
+    if nombre.endswith((".xlsx", ".xls")):
         return pd.read_excel(archivo)
     raise ValueError(f"Formato no soportado: {archivo.name}")
 
@@ -184,6 +184,39 @@ def categorizar(var, umbral_subida, umbral_bajada):
 def main():
     st.title("📊 Explosión y Comparador de Demandas con BOM")
     st.subheader("Sube tus Forecasts mensuales y tu BOM para analizar variaciones consolidadas")
+
+    # --- SECCIÓN DE DESCARGA DE TEMPLATES DE ANÁLISIS ---
+    st.markdown("### 📥 Descargar Plantillas de Referencia")
+    d_col1, d_col2 = st.columns(2)
+    
+    path_bom = os.path.join("assets", "plantilla_bom.xlsx")
+    path_forecast = os.path.join("assets", "plantilla_forecast.xlsx")
+    
+    with d_col1:
+        if os.path.exists(path_bom):
+            with open(path_bom, "rb") as file:
+                st.download_button(
+                    label="📂 Descargar Plantilla BOM (Excel)",
+                    data=file,
+                    file_name="plantilla_bom.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.info("ℹ️ Plantilla BOM no disponible en la carpeta de assets.")
+            
+    with d_col2:
+        if os.path.exists(path_forecast):
+            with open(path_forecast, "rb") as file:
+                st.download_button(
+                    label="📅 Descargar Plantilla Forecast (Excel)",
+                    data=file,
+                    file_name="plantilla_forecast.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.info("ℹ️ Plantilla de Forecast no disponible en la carpeta de assets.")
+
+    st.markdown("--- ")
 
     st.sidebar.header("⚙️ Configuración de Alertas")
     umbral_subida = st.sidebar.slider("Umbral de Incremento Crítico (%)", 10, 200, 30, 5)
@@ -331,7 +364,7 @@ def main():
         )
 
         # ============================================================
-        # CHAT BOT INTEGRADO CON GEMINI AI
+        # CHAT BOT INTEGRADO WITH GEMINI AI
         # ============================================================
         st.markdown("--- ")
         st.subheader("💬 Consulta Inteligente con Gemini AI")
@@ -367,16 +400,25 @@ def main():
                         st.write(prompt)
 
                     resumen_materiales = merged_tot.to_string(index=False)
+
+                    # PRECONFIGURACIÓN DE GEMINI COMO EXPERTO EN CADENA DE SUMINISTRO
                     contexto_completo = (
-                        f"Actúas como un experto Planner de compras de producción.\n"
-                        f"Aquí tienes el resultado de la explosión de materiales y su variación de demanda:\n"
-                        f"{resumen_materiales}\n\n"
-                        f"Responde de forma concisa, profesional y en español a la siguiente pregunta: {prompt}"
+                        f"Actúas como un Consultor Senior y Experto en Planificación, Compras y Cadena de Suministro (Supply Chain & Operations Planner).
+"
+                        f"Tus respuestas deben enfocarse en optimizar inventarios, mitigar riesgos financieros, balancear capacidades con proveedores, gestionar el impacto de variaciones críticas (alertas rojas/azules) y sugerir estrategias de aprovisionamiento de clase mundial (como Just-in-Time, stock de seguridad, buffers, o negociaciones de lead-time).
+
+"
+                        f"Aquí tienes el resultado numérico consolidado de la explosión de materiales y su variación de demanda:
+"
+                        f"{resumen_materiales}
+
+"
+                        f"Responde en español de forma concisa, analítica, profesional y accionable a la siguiente pregunta: {prompt}"
                     )
 
                     with st.chat_message("assistant"):
                         with st.spinner("Pensando..."):
-                            response = client.models.generate_content(
+                            response = client.models.generate_content( 
                                 model='gemini-3.8-flash',
                                 contents=contexto_completo,
                             )
