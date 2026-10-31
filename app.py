@@ -51,13 +51,11 @@ def buscar_columna(df, palabras, descripcion):
     raise ValueError(f"No se encontró la columna '{descripcion}'. Encabezados encontrados: {columnas}")
 
 def leer_archivo(archivo):
-    """Lee archivos de datos de Excel o CSV."""
+    """Lee exclusivamente archivos CSV."""
     nombre = archivo.name.lower()
     if nombre.endswith(".csv"):
         return pd.read_csv(archivo)
-    if nombre.endswith((".xlsx", ".xls")):
-        return pd.read_excel(archivo)
-    raise ValueError(f"Formato no soportado: {archivo.name}")
+    raise ValueError(f"Formato no soportado: {archivo.name}. Solo se permiten archivos en formato CSV.")
 
 # ============================================================
 # DETECCIÓN DE COLUMNAS DE FECHAS / MESES
@@ -185,6 +183,15 @@ def main():
     st.title("📊 Explosión y Comparador de Demandas con BOM")
     st.subheader("Sube tus Forecasts mensuales y tu BOM para analizar variaciones consolidadas")
 
+    # --- CUADRO DE INSTRUCCIONES INICIALES ---
+    st.info("""📝 **Instrucciones de Uso de la Aplicación:**
+
+* **Paso 1:** Descarga las plantillas de referencia abajo y llénalas con la información solicitada.
+* **Paso 2:** Guarda las plantillas en tu ordenador como formato CSV.
+* **Paso 3:** Sube tus archivos en la **Carga de Archivos de Planificación** según corresponda en los cargadores inferiores.
+
+⚠️ **NOTA IMPORTANTE:** Solo se permite cargar archivos en formato **CSV**. Por favor, asegúrate de guardar tus hojas de cálculo bajo este formato antes de subirlas.""")
+
     # --- SECCIÓN DE DESCARGA DE TEMPLATES DE ANÁLISIS ---
     st.markdown("### 📥 Descargar Plantillas de Referencia")
     d_col1, d_col2 = st.columns(2)
@@ -245,11 +252,11 @@ def main():
     else:
         col1, col2, col3 = st.columns(3)
         with col1:
-            file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv", "xlsx", "xls"], key="forecast_anterior")
+            file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv"], key="forecast_anterior")
         with col2:
-            file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv", "xlsx", "xls"], key="forecast_nuevo")
+            file_nuevo = st.file_uploader("2. Forecast Nuevo (Prod. Terminado)", type=["csv"], key="forecast_nuevo")
         with col3:
-            file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv", "xlsx", "xls"], key="bom")
+            file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv"], key="bom")
 
         if not (file_ant and file_nuevo and file_bom):
             st.info("Por favor, carga los tres archivos requeridos para iniciar el cálculo de la explosión.")
