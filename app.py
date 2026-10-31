@@ -22,6 +22,8 @@ def main():
     st.write("### 📂 Carga de Archivos de Planificación")
     use_demo = st.checkbox("Usar datos simulados de demostración (BOM + Forecasts)", value=False)
 
+    df_fc_ant, df_fc_nuevo, df_bom = None, None, None
+
     if use_demo:
         df_fc_ant = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
@@ -38,10 +40,11 @@ def main():
             "Componente": ["Componente A", "Componente B", "Componente A", "Componente C"],
             "Cantidad requerida": [5, 2, 3, 4]
         })
+        # Sanitizar inmediato para la demostración
         df_fc_ant.columns = df_fc_ant.columns.map(str)
         df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
         df_bom.columns = df_bom.columns.map(str)
-        st.success("Cargados datos de demostración con estructura mensual.")
+        st.success("Cargados datos de demostración de forma segura.")
     else:
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -52,145 +55,159 @@ def main():
             file_bom = st.file_uploader("3. Estructura BOM (Componentes)", type=["csv", "xlsx"])
 
         if file_ant and file_nuevo and file_bom:
-            df_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
-            df_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
-            df_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
+            raw_fc_ant = pd.read_csv(file_ant) if file_ant.name.endswith('.csv') else pd.read_excel(file_ant)
+            raw_fc_nuevo = pd.read_csv(file_nuevo) if file_nuevo.name.endswith('.csv') else pd.read_excel(file_nuevo)
+            raw_bom = pd.read_csv(file_bom) if file_bom.name.endswith('.csv') else pd.read_excel(file_bom)
 
-            # Forzar la conversión de todas las cabeceras a string para mitigar tipos datetime/numéricos
-            df_fc_ant.columns = df_fc_ant.columns.map(str)
-            df_fc_nuevo.columns = df_fc_nuevo.columns.map(str)
-            df_bom.columns = df_bom.columns.map(str)
+            st.info("Archivos cargados con éxito. Presiona el botón de abajo para forzar la conversión a texto plano y procesar.")
+            
+            if st.button("⚙️ Convertir a Texto Plano y Procesar", type="primary"):
+                # Convertir explícitamente cada nombre de columna a String y quitar espacios en blanco
+                df_fc_ant = raw_fc_ant.copy()
+                df_fc_ant.columns = df_fc_ant.columns.map(lambda x: str(x).strip())
+                
+                df_fc_nuevo = raw_fc_nuevo.copy()
+                df_fc_nuevo.columns = df_fc_nuevo.columns.map(lambda x: str(x).strip())
+                
+                df_bom = raw_bom.copy()
+                df_bom.columns = df_bom.columns.map(lambda x: str(x).strip())
+                
+                st.success("¡Conversión a texto plano realizada con éxito!")
         else:
             st.warning("Por favor sube los tres ficheros requeridos para proceder.")
             return
 
-    # Procesamiento y Explosión de Materiales
-    try:
-        # 1. Estandarización Dinámica de la BOM usando str(c).lower()
-        col_material = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["material", "componente", "part_number"])][0]
-        col_cant_bom = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["cant", "qty", "factor", "requerida"])][0]
+    # Si la sanitización de dataframes ha ocurrido con éxito
+    if df_fc_ant is not None and df_fc_nuevo is not None and df_bom is not None:
+        try:
+            # 1. Estandarización Dinámica de la BOM usando str(c).lower()
+            col_material = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["material", "componente", "part_number"])][0]
+            col_cant_bom = [c for c in df_bom.columns if any(p in str(c).lower() for p in ["cant", "qty", "factor", "requerida"])][0]
 
-        df_bom_clean = df_bom.copy()
-        df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM"}, inplace=True)
+            df_bom_clean = df_bom.copy()
+            df_bom_clean.rename(columns={col_material: "Material", col_cant_bom: "Cantidad_BOM"}, inplace=True)
 
-        # Buscar columna Producto
-        col_prod_bom = [c for c in df_bom_clean.columns if "prod" in str(c).lower()][0]
-        df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
+            # Buscar columna Producto
+            col_prod_bom = [c for c in df_bom_clean.columns if "prod" in str(c).lower()][0]
+            df_bom_clean.rename(columns={col_prod_bom: "Producto"}, inplace=True)
 
-        # 2. Identificación de Columnas Temporales (Meses) en los Forecasts
-        palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+            # 2. Identificación de Columnas Temporales (Meses) en los Forecasts
+            palabras_mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-        col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
-        col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
+            col_meses_ant = [c for c in df_fc_ant.columns if any(m in str(c).lower() for m in palabras_mes)]
+            col_meses_nue = [c for c in df_fc_nuevo.columns if any(m in str(c).lower() for m in palabras_mes)]
 
-        col_prod_ant = [c for c in df_fc_ant.columns if "prod" in str(c).lower()][0]
-        col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in str(c).lower()][0]
+            col_prod_ant = [c for c in df_fc_ant.columns if "prod" in str(c).lower()][0]
+            col_prod_nue = [c for c in df_fc_nuevo.columns if "prod" in str(c).lower()][0]
 
-        df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
-        df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
+            df_fc_ant_clean = df_fc_ant.copy().rename(columns={col_prod_ant: "Producto"})
+            df_fc_nuevo_clean = df_fc_nuevo.copy().rename(columns={col_prod_nue: "Producto"})
 
-        # Consolidar Demanda Anual sumando todas las columnas de meses encontradas
-        if col_meses_ant:
-            df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].sum(axis=1)
-        else:
-            col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
-            df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_dem_ant]
-
-        if col_meses_nue:
-            df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].sum(axis=1)
-        else:
-            col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
-            df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_dem_nue]
-
-        # --- EXPLOSIÓN DE DEMANDA ANTERIOR ---
-        merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
-        merged_ant["Demanda_Comp_Ant"] = merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]
-
-        # --- EXPLOSIÓN DE DEMANDA NUEVA ---
-        merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
-        merged_nuevo["Demanda_Comp_Nueva"] = merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]
-
-        # 1. Agrupar por Componente y Producto Terminado para el detalle cruzado
-        dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
-        dtl_nuevo = merged_nuevo.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Nueva"].sum()
-
-        merged_dtl = pd.merge(dtl_ant, dtl_nuevo, on=["Material", "Producto"], how="outer").fillna(0)
-        merged_dtl["Var_Abs_Prod"] = merged_dtl["Demanda_Comp_Nueva"] - merged_dtl["Demanda_Comp_Ant"]
-
-        # 2. Calcular Totales Consolidados por Material
-        tot_ant = merged_ant.groupby(["Material"], as_index=False)["Demanda_Comp_Ant"].sum()
-        tot_nuevo = merged_nuevo.groupby(["Material"], as_index=False)["Demanda_Comp_Nueva"].sum()
-
-        merged_tot = pd.merge(tot_ant, tot_nuevo, on="Material", how="outer").fillna(0)
-        merged_tot["Var_Abs_Total"] = merged_tot["Demanda_Comp_Nueva"] - merged_tot["Demanda_Comp_Ant"]
-        merged_tot["Variación % Total"] = (merged_tot["Var_Abs_Total"] / merged_tot["Demanda_Comp_Ant"]) * 100
-        merged_tot["Variación % Total"] = merged_tot["Variación % Total"].replace([np.inf, -np.inf], np.nan).fillna(0)
-
-        # Unir totales de variación al DataFrame detallado
-        final_df = pd.merge(merged_dtl, merged_tot[["Material", "Var_Abs_Total", "Variación % Total"]], on="Material")
-
-        # 3. Calcular % de Influencia en la variación del componente
-        final_df["% Influencia en Variación"] = np.where(
-            final_df["Var_Abs_Total"] != 0,
-            (final_df["Var_Abs_Prod"] / final_df["Var_Abs_Total"]) * 100,
-            0.0
-        )
-
-        # Categorización
-        def categorizar(row):
-            var = row["Variación % Total"]
-            if var >= umbral_subida:
-                return "🔴 Incremento Crítico"
-            elif var <= umbral_bajada:
-                return "🔵 Disminución Crítica"
+            # Consolidar Demanda Anual sumando todas las columnas de meses encontradas
+            if col_meses_ant:
+                df_fc_ant_clean["Demanda_Ant"] = df_fc_ant_clean[col_meses_ant].apply(pd.to_numeric, errors='coerce').fillna(0).sum(axis=1)
             else:
-                return "🟢 Estable"
+                col_dem_ant = [c for c in df_fc_ant_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
+                df_fc_ant_clean["Demanda_Ant"] = pd.to_numeric(df_fc_ant_clean[col_dem_ant], errors='coerce').fillna(0)
 
-        final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
+            if col_meses_nue:
+                df_fc_nuevo_clean["Demanda_Nueva"] = df_fc_nuevo_clean[col_meses_nue].apply(pd.to_numeric, errors='coerce').fillna(0).sum(axis=1)
+            else:
+                col_dem_nue = [c for c in df_fc_nuevo_clean.columns if any(p in str(c).lower() for p in ["demanda", "cant", "vol"])][0]
+                df_fc_nuevo_clean["Demanda_Nueva"] = pd.to_numeric(df_fc_nuevo_clean[col_dem_nue], errors='coerce').fillna(0)
 
-        # Resumen de Métricas Consolidadas únicas
-        st.write("### 📈 Resumen de Impacto Global de Componentes")
-        totales_unicos = merged_tot.copy()
-        totales_unicos["Impacto"] = totales_unicos.apply(lambda r: "🔴 Incremento Crítico" if r["Var_Abs_Total" ] > 0 and r["Variación % Total"] >= umbral_subida else ("🔵 Disminución Crítica" if r["Var_Abs_Total"] < 0 and r["Variación % Total"] <= umbral_bajada else "🟢 Estable"), axis=1)
+            # Convertir factores cuantitativos de BOM de forma segura
+            df_bom_clean["Cantidad_BOM"] = pd.to_numeric(df_bom_clean["Cantidad_BOM"], errors='coerce').fillna(0)
 
-        totales = totales_unicos["Impacto"].value_counts()
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Incrementos Críticos (Alerta Roja)", totales.get("🔴 Incremento Crítico", 0))
-        m2.metric("Disminuciones Críticas (Alerta Azul)", totales.get("🔵 Disminución Crítica", 0))
-        m3.metric("Materiales Estables", totales.get("🟢 Estable", 0))
+            # --- EXPLOSIÓN DE DEMANDA ANTERIOR ---
+            merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean[["Producto", "Demanda_Ant"]], on="Producto", how="inner")
+            merged_ant["Demanda_Comp_Ant"] = merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]
 
-        # Tabla Detallada
-        st.write("### 🔍 Desglose de Componentes Explosionados y su Influencia por Producto")
+            # --- EXPLOSIÓN DE DEMANDA NUEVA ---
+            merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean[["Producto", "Demanda_Nueva"]], on="Producto", how="inner")
+            merged_nuevo["Demanda_Comp_Nueva"] = merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]
 
-        filtro_impacto = st.multiselect(
-            "Filtrar por categoría de Impacto:",
-            options=["🔴 Incremento Crítico", "🔵 Disminución Crítica", "🟢 Estable"],
-            default=["🔴 Incremento Crítico", "🔵 Disminución Crítica", "🟢 Estable"]
-        )
+            # 1. Agrupar por Componente y Producto Terminado para el detalle cruzado
+            dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
+            dtl_nuevo = merged_nuevo.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Nueva"].sum()
 
-        df_filtrado = final_df[final_df["Impacto Componente"].isin(filtro_impacto)].sort_values(by=["Material", "Var_Abs_Prod"], ascending=[True, False])
+            merged_dtl = pd.merge(dtl_ant, dtl_nuevo, on=["Material", "Producto"], how="outer").fillna(0)
+            merged_dtl["Var_Abs_Prod"] = merged_dtl["Demanda_Comp_Nueva"] - merged_dtl["Demanda_Comp_Ant"]
 
-        # Renombrar columnas para claridad visual
-        df_presentacion = df_filtrado.rename(columns={
-            "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
-            "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
-            "Var_Abs_Prod": "Variación Requerida (Abs)",
-            "Var_Abs_Total": "Variación Total Componente",
-            "Variación % Total": "Variación % Total Componente",
-            "Impacto Componente": "Impacto del Componente"
-        })
+            # 2. Calcular Totales Consolidados por Material
+            tot_ant = merged_ant.groupby(["Material"], as_index=False)["Demanda_Comp_Ant"].sum()
+            tot_nuevo = merged_nuevo.groupby(["Material"], as_index=False)["Demanda_Comp_Nueva"].sum()
 
-        st.dataframe(df_presentacion.style.format({
-            "Demanda Requerida Ant (Prod)": "{:.0f}",
-            "Demanda Requerida Nueva (Prod)": "{:.0f}",
-            "Variación Requerida (Abs)": "{:+,.0f}",
-            "Variación Total Componente": "{:+,.0f}",
-            "Variación % Total Componente": "{:+,.1f}%",
-            "% Influencia en Variación": "{:+,.1f}%"
-        }))
+            merged_tot = pd.merge(tot_ant, tot_nuevo, on="Material", how="outer").fillna(0)
+            merged_tot["Var_Abs_Total"] = merged_tot["Demanda_Comp_Nueva"] - merged_tot["Demanda_Comp_Ant"]
+            merged_tot["Variación % Total"] = (merged_tot["Var_Abs_Total"] / merged_tot["Demanda_Comp_Ant"]) * 100
+            merged_tot["Variación % Total"] = merged_tot["Variación % Total"].replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    except Exception as e:
-        st.error(f"Ha ocurrido un error al procesar los archivos: {e}")
+            # Unir totales de variación al DataFrame detallado
+            final_df = pd.merge(merged_dtl, merged_tot[["Material", "Var_Abs_Total", "Variación % Total"]], on="Material")
+
+            # 3. Calcular % de Influencia en la variación del componente
+            final_df["% Influencia en Variación"] = np.where(
+                final_df["Var_Abs_Total"] != 0,
+                (final_df["Var_Abs_Prod"] / final_df["Var_Abs_Total"]) * 100,
+                0.0
+            )
+
+            # Categorización
+            def categorizar(row):
+                var = row["Variación % Total"]
+                if var >= umbral_subida:
+                    return "🔴 Incremento Crítico"
+                elif var <= umbral_bajada:
+                    return "🔵 Disminución Crítica"
+                else:
+                    return "🟢 Estable"
+
+            final_df["Impacto Componente"] = final_df.apply(categorizar, axis=1)
+
+            # Resumen de Métricas Consolidadas únicas
+            st.write("### 📈 Resumen de Impacto Global de Componentes")
+            totales_unicos = merged_tot.copy()
+            totales_unicos["Impacto"] = totales_unicos.apply(lambda r: "🔴 Incremento Crítico" if r["Var_Abs_Total" ] > 0 and r["Variación % Total"] >= umbral_subida else ("🔵 Disminución Crítica" if r["Var_Abs_Total"] < 0 and r["Variación % Total"] <= umbral_bajada else "🟢 Estable"), axis=1)
+
+            totales = totales_unicos["Impacto"].value_counts()
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Incrementos Críticos (Alerta Roja)", totales.get("🔴 Incremento Crítico", 0))
+            m2.metric("Disminuciones Críticas (Alerta Azul)", totales.get("🔵 Disminución Crítica", 0))
+            m3.metric("Materiales Estables", totales.get("🟢 Estable", 0))
+
+            # Tabla Detallada
+            st.write("### 🔍 Desglose de Componentes Explosionados y su Influencia por Producto")
+
+            filtro_impacto = st.multiselect(
+                "Filtrar por categoría de Impacto:",
+                options=["🔴 Incremento Crítico", "🔵 Disminución Crítica", "🟢 Estable"],
+                default=["🔴 Incremento Crítico", "🔵 Disminución Crítica", "🟢 Estable"]
+            )
+
+            df_filtrado = final_df[final_df["Impacto Componente"].isin(filtro_impacto)].sort_values(by=["Material", "Var_Abs_Prod"], ascending=[True, False])
+
+            # Renombrar columnas para claridad visual
+            df_presentacion = df_filtrado.rename(columns={
+                "Demanda_Comp_Ant": "Demanda Requerida Ant (Prod)",
+                "Demanda_Comp_Nueva": "Demanda Requerida Nueva (Prod)",
+                "Var_Abs_Prod": "Variación Requerida (Abs)",
+                "Var_Abs_Total": "Variación Total Componente",
+                "Variación % Total": "Variación % Total Componente",
+                "Impacto Componente": "Impacto del Componente"
+            })
+
+            st.dataframe(df_presentacion.style.format({
+                "Demanda Requerida Ant (Prod)": "{:.0f}",
+                "Demanda Requerida Nueva (Prod)": "{:.0f}",
+                "Variación Requerida (Abs)": "{:+,.0f}",
+                "Variación Total Componente": "{:+,.0f}",
+                "Variación % Total Componente": "{:+,.1f}%",
+                "% Influencia en Variación": "{:+,.1f}%"
+            }))
+
+        except Exception as e:
+            st.error(f"Ha ocurrido un error al procesar los archivos: {e}")
 
 if __name__ == "__main__":
     main()
