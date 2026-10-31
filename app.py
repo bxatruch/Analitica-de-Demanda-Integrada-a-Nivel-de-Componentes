@@ -68,10 +68,13 @@ M_ESES_LIST = [
 ]
 
 def es_columna_mes(columna):
-    """Detecta si un encabezado corresponde a un periodo mensual."""
+    """Detecta si un encabezado corresponde a un periodo mensual o etiquetas tipo Mes X."""
     if isinstance(columna, (datetime.datetime, datetime.date, pd.Timestamp, np.datetime64)):
         return True
     texto = normalizar_texto(columna)
+    # Detectar 'mes 1', 'mes 2', ..., 'mes 12' o 'month 1', etc.
+    if re.fullmatch(r"(mes|month)\s*\d+", texto):
+        return True
     if any(mes in texto for mes in M_ESES_LIST):
         return True
     if re.fullmatch(r"\d{4}[-/]\d{1,2}", texto):
@@ -235,13 +238,13 @@ def main():
     if use_demo:
         df_fc_ant = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
-            "01-ene": [1000, 500, 300],
-            "01-feb": [1100, 400, 350]
+            "Mes 1": [1000, 500, 300],
+            "Mes 2": [1100, 400, 350]
         })
         df_fc_nuevo = pd.DataFrame({
             "Producto": ["Producto A", "Producto B", "Producto C"],
-            "01-ene": [1200, 300, 300],
-            "01-feb": [1500, 200, 400]
+            "Mes 1": [1200, 300, 300],
+            "Mes 2": [1500, 200, 400]
         })
         df_bom = pd.DataFrame({
             "Producto": ["Producto A", "Producto A", "Producto B", "Producto C"],
@@ -249,7 +252,7 @@ def main():
             "Cantidad requerida": [5, 2, 3, 4]
         })
         st.success("Cargados datos de demostración.")
-    else:
+    else: 
         col1, col2, col3 = st.columns(3)
         with col1:
             file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv"], key="forecast_anterior")
@@ -401,7 +404,7 @@ def main():
                     with st.chat_message(chat["role"]):
                         st.write(chat["text"])
 
-                if prompt := st.chat_input("Escribe tu pregunta sobre los resultados de materiales aquí..."):
+                if prompt := st.chat_input("Escribe tu pregunta sobre los resultados de materiales aquí... "):
                     st.session_state["chat_history"].append({"role": "user", "text": prompt})
                     with st.chat_message("user"):
                         st.write(prompt)
