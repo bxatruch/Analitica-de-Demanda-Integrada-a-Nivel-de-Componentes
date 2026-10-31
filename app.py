@@ -191,7 +191,7 @@ def main():
         }))
 
     except Exception as e:
-        st.error(f"Ha ocurrido un error al procesar y explosionar los archivos de demanda con la BOM: {e}")
+        st.error(f"Ha ocurrido un error al procesar los archivos: {e}")
 
 if __name__ == "__main__":
     main()
