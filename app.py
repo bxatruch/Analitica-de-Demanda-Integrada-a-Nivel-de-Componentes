@@ -195,7 +195,9 @@ def main():
 * **Paso 2:** Guarda las plantillas en tu ordenador como formato CSV.
 * **Paso 3:** Sube tus archivos en la **Carga de Archivos de Planificación** según corresponda en los cargadores inferiores.
 
-⚠️ **NOTA IMPORTANTE:** Solo se permite cargar archivos en formato **CSV**. Por favor, asegúrate de guardar tus hojas de cálculo bajo este formato antes de subirlas.""")
+⚠️ **NOTA IMPORTANTE:** Solo se permite cargar archivos en formato **CSV**. Por favor, asegúrate de guardar tus hojas de cálculo bajo este formato antes de subirlas.
+
+📌 **NOTA ADICIONAL:** Este sistema únicamente procesa datos y volúmenes en formato de **números enteros**. Cualquier valor decimal o float presente en las demandas de los archivos subidos será redondeado automáticamente al entero más cercano durante el análisis.""")
 
     # --- SECCIÓN DE DESCARGA DE TEMPLATES DE ANÁLISIS ---
     st.markdown("### 📥 Descargar Plantillas de Referencia")
@@ -254,7 +256,7 @@ def main():
             "Cantidad requerida": [5, 2, 3, 4]
         })
         st.success("Cargados datos de demostración.")
-    else: 
+    else:
         col1, col2, col3 = st.columns(3)
         with col1:
             file_ant = st.file_uploader("1. Forecast Anterior (Prod. Terminado)", type=["csv"], key="forecast_anterior")
@@ -336,7 +338,7 @@ def main():
         final_df = pd.merge(merged_dtl, merged_tot[["Material", "Var_Abs_Total", "Variación % Total"]], on="Material", how="left")
         final_df["% Influencia en Variación"] = np.where(
             final_df["Var_Abs_Total"] != 0,
-            (final_df["Var_Abs_Prod" ] / final_df["Var_Abs_Total"]) * 100,
+            (final_df["Var_Abs_Prod"] / final_df["Var_Abs_Total"]) * 100,
             0.0
         )
         final_df["Impacto Componente"] = final_df["Variación % Total"].apply(lambda x: categorizar(x, umbral_subida, umbral_bajada))
