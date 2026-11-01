@@ -197,7 +197,7 @@ def main():
 
 ⚠️ **NOTA IMPORTANTE:** Solo se permite cargar archivos en formato **CSV**. Por favor, asegúrate de guardar tus hojas de cálculo bajo este formato antes de subirlas.
 
-📌 **NOTA ADICIONAL:** Este sistema únicamente procesa datos y volúmenes en formato de **números enteros**. Cualquier valor decimal o float presente en las demandas de los archivos subidos será redondeado automáticamente al entero más cercano durante el análisis.""")
+📌 **NOTA ADICIONAL:** Este sistema únicamente procesa datos y volúmenes en formato de **números enteros**.""")
 
     # --- SECCIÓN DE DESCARGA DE TEMPLATES DE ANÁLISIS ---
     st.markdown("### 📥 Descargar Plantillas de Referencia")
