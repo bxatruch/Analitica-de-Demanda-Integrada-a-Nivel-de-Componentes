@@ -1,6 +1,6 @@
 # 📊 Explosión y Comparador de Demandas con BOM
 
-[![Streamlit App](https://static.streamlit.io/badge-branded.svg)](https://mi-reto-mdfxvvzdhjdyfeu6cbphmu.streamlit.app/)
+https://6vxtprnljpevh9gbbjrlvw.streamlit.app/
 
 Esta aplicación web interactiva ayuda a los **Purchasing Planners** (Planificadores de Compras) a identificar de forma visual, ágil e inmediata el impacto que tienen los nuevos lanzamientos (*releases*) de demanda sobre los componentes individuales mediante una **explosión de materiales (BOM)** en tiempo real.
 
