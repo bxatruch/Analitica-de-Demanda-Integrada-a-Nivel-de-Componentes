@@ -91,7 +91,7 @@ def es_columna_mes(columna):
 # PROCESAMIENTO DE ARCHIVOS
 # ============================================================
 def obtener_demanda(df, nombre_demanda, meses_filtrados=None):
-    """Consolida la demanda mensual o totaliza de acuerdo al formato del archivo y meses seleccionados."""
+    """Consolida la demanda mensual y la convierte a números enteros con redondeo estándar."""
     df = df.copy()
     if df.empty or len(df.columns) == 0:
         raise ValueError("El Forecast está vacío o no tiene encabezados.")
@@ -113,8 +113,7 @@ def obtener_demanda(df, nombre_demanda, meses_filtrados=None):
         if meses_filtrados is not None:
             columnas_a_sumar = [c for c in columnas_meses_detectadas if c in meses_filtrados]
             if not columnas_a_sumar:
-                # Si por alguna razón la intersección es vacía, sumamos cero para evitar errores
-                df[nombre_demanda] = 0.0
+                df[nombre_demanda] = 0
                 df.rename(columns={col_producto: "Producto"}, inplace=True)
                 df["Producto"] = df["Producto"].astype("string").str.strip()
                 return df[["Producto", nombre_demanda]]
@@ -122,14 +121,17 @@ def obtener_demanda(df, nombre_demanda, meses_filtrados=None):
             columnas_a_sumar = columnas_meses_detectadas
 
         valores = df[columnas_a_sumar].apply(pd.to_numeric, errors="coerce").fillna(0)
-        df[nombre_demanda] = valores.sum(axis=1)
+        # Redondear y convertir a entero
+        df[nombre_demanda] = valores.sum(axis=1).round().astype(int)
     else:
         col_demanda = buscar_columna(
             df,
             ["demanda", "cantidad", "cant", "volumen", "vol", "total", "qty"],
             "Demanda o Cantidad"
         )
-        df[nombre_demanda] = pd.to_numeric(df[col_demanda], errors="coerce").fillna(0)
+        valores_demanda = pd.to_numeric(df[col_demanda], errors="coerce").fillna(0)
+        # Redondear y convertir a entero
+        df[nombre_demanda] = valores_demanda.round().astype(int)
 
     df.rename(columns={col_producto: "Producto"}, inplace=True)
     df["Producto"] = df["Producto"].astype("string").str.strip()
@@ -137,7 +139,7 @@ def obtener_demanda(df, nombre_demanda, meses_filtrados=None):
     return df[["Producto", nombre_demanda]]
 
 def preparar_bom(df):
-    """Limpia y estandariza la estructura del Árbol de Materiales (BOM)."""
+    """Limpia y estandariza la estructura del Árbol de Materiales (BOM). Manteniendo factores decimales para exactitud de cálculo."""
     df = df.copy()
     if df.empty or len(df.columns) == 0:
         raise ValueError("La BOM está vacía o no tiene encabezados.")
@@ -158,7 +160,7 @@ def preparar_bom(df):
     for col in ["Producto", "Material"]:
         df[col] = df[col].astype("string").str.strip()
 
-    df["Cantidad_BOM"] = pd.to_numeric(df["Cantidad_BOM"], errors="coerce").fillna(0)
+    df["Cantidad_BOM"] = pd.to_numeric(df["Cantidad_BOM"], errors="coerce").fillna(0.0)
     df = df.dropna(subset=["Producto", "Material"])
     return df[["Producto", "Material", "Cantidad_BOM"]]
 
@@ -300,13 +302,13 @@ def main():
         df_fc_ant_clean = obtener_demanda(df_fc_ant, "Demanda_Ant", meses_seleccionados)
         df_fc_nuevo_clean = obtener_demanda(df_fc_nuevo, "Demanda_Nueva", meses_seleccionados)
 
-        # Explosión Anterior
+        # Explosión Anterior (Redondeando la cantidad requerida final de componentes a entero)
         merged_ant = pd.merge(df_bom_clean, df_fc_ant_clean, on="Producto", how="inner")
-        merged_ant["Demanda_Comp_Ant"] = merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]
+        merged_ant["Demanda_Comp_Ant"] = (merged_ant["Demanda_Ant"] * merged_ant["Cantidad_BOM"]).round().astype(int)
 
         # Explosión Nueva
         merged_nuevo = pd.merge(df_bom_clean, df_fc_nuevo_clean, on="Producto", how="inner")
-        merged_nuevo["Demanda_Comp_Nueva"] = merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]
+        merged_nuevo["Demanda_Comp_Nueva"] = (merged_nuevo["Demanda_Nueva"] * merged_nuevo["Cantidad_BOM"]).round().astype(int)
 
         if merged_ant.empty and merged_nuevo.empty:
             st.warning("No se encontraron coincidencias de códigos entre los Forecasts y la BOM.")
@@ -316,13 +318,18 @@ def main():
         dtl_ant = merged_ant.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Ant"].sum()
         dtl_nuevo = merged_nuevo.groupby(["Material", "Producto"], as_index=False)["Demanda_Comp_Nueva"].sum()
         merged_dtl = pd.merge(dtl_ant, dtl_nuevo, on=["Material", "Producto"], how="outer").fillna(0)
-        merged_dtl["Var_Abs_Prod"] = merged_dtl["Demanda_Comp_Nueva"] - merged_dtl["Demanda_Comp_Ant"]
+        # Asegurar tipo entero para demandas e implicaciones
+        merged_dtl["Demanda_Comp_Ant"] = merged_dtl["Demanda_Comp_Ant"].round().astype(int)
+        merged_dtl["Demanda_Comp_Nueva"] = merged_dtl["Demanda_Comp_Nueva"].round().astype(int)
+        merged_dtl["Var_Abs_Prod"] = (merged_dtl["Demanda_Comp_Nueva"] - merged_dtl["Demanda_Comp_Ant"]).astype(int)
 
         # Totales consolidados por material
         tot_ant = merged_ant.groupby("Material", as_index=False)["Demanda_Comp_Ant"].sum()
         tot_nuevo = merged_nuevo.groupby("Material", as_index=False)["Demanda_Comp_Nueva"].sum()
         merged_tot = pd.merge(tot_ant, tot_nuevo, on="Material", how="outer").fillna(0)
-        merged_tot["Var_Abs_Total"] = merged_tot["Demanda_Comp_Nueva"] - merged_tot["Demanda_Comp_Ant"]
+        merged_tot["Demanda_Comp_Ant"] = merged_tot["Demanda_Comp_Ant"].round().astype(int)
+        merged_tot["Demanda_Comp_Nueva"] = merged_tot["Demanda_Comp_Nueva"].round().astype(int)
+        merged_tot["Var_Abs_Total"] = (merged_tot["Demanda_Comp_Nueva"] - merged_tot["Demanda_Comp_Ant"]).astype(int)
         merged_tot["Variación % Total"] = calcular_porcentaje_variacion(merged_tot["Demanda_Comp_Ant"], merged_tot["Demanda_Comp_Nueva"])
 
         # Combinación final
